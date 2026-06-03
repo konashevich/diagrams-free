@@ -88,6 +88,40 @@ if (isDevEnv()) {
 
 let currentLang: Language = defaultLang;
 let currentLangData = {};
+let localeOverridesByLang: Record<string, Record<string, unknown>> = {};
+
+const deepMerge = (
+  target: Record<string, unknown>,
+  source: Record<string, unknown>,
+): Record<string, unknown> => {
+  const result = { ...target };
+  for (const key of Object.keys(source)) {
+    const sourceValue = source[key];
+    const targetValue = target[key];
+    if (
+      sourceValue &&
+      typeof sourceValue === "object" &&
+      !Array.isArray(sourceValue) &&
+      targetValue &&
+      typeof targetValue === "object" &&
+      !Array.isArray(targetValue)
+    ) {
+      result[key] = deepMerge(
+        targetValue as Record<string, unknown>,
+        sourceValue as Record<string, unknown>,
+      );
+    } else {
+      result[key] = sourceValue;
+    }
+  }
+  return result;
+};
+
+export const setLocaleOverrides = (
+  overrides: Record<string, Record<string, unknown>>,
+) => {
+  localeOverridesByLang = overrides;
+};
 
 export const setLanguage = async (lang: Language) => {
   currentLang = lang;
@@ -103,6 +137,14 @@ export const setLanguage = async (lang: Language) => {
       console.error(`Failed to load language ${lang.code}:`, error.message);
       currentLangData = fallbackLangData;
     }
+  }
+
+  const overrides = localeOverridesByLang[currentLang.code];
+  if (overrides) {
+    currentLangData = deepMerge(
+      currentLangData as Record<string, unknown>,
+      overrides,
+    );
   }
 
   editorJotaiStore.set(editorLangCodeAtom, lang.code);

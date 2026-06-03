@@ -1,0 +1,20 @@
+diagrams.free
+===========
+
+This product is **diagrams.free** — a browser-based whiteboard for hand-drawn style diagrams.
+
+## Third-party software
+
+This application is based on [Excalidraw](https://github.com/excalidraw/excalidraw), which is
+Copyright (c) 2020 Excalidraw and distributed under the MIT License. See [LICENSE](./LICENSE).
+
+The Excalidraw source code is used under the terms of the MIT License, which requires retaining
+the copyright notice above in copies or substantial portions of the software.
+
+## diagrams.free fork
+
+Additional changes in this repository are maintained at
+[konashevich/excalidraw-save](https://github.com/konashevich/excalidraw-save).
+
+For dependency licenses, refer to each package's `package.json` and the `node_modules` tree
+after installation.

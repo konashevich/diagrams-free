@@ -127,7 +127,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       Sitemap({
-        hostname: "https://excalidraw.com",
+        hostname: "https://diagrams.free",
         outDir: "build",
         changefreq: "monthly",
         // its static in public folder
@@ -220,10 +220,10 @@ export default defineConfig(({ mode }) => {
           maximumFileSizeToCacheInBytes: 2.3 * 1024 ** 2, // 2.3MB
         },
         manifest: {
-          short_name: "Excalidraw",
-          name: "Excalidraw",
+          short_name: "diagrams.free",
+          name: "diagrams.free",
           description:
-            "Excalidraw is a whiteboard tool that lets you easily sketch diagrams that have a hand-drawn feel to them.",
+            "Hand-drawn diagrams in your browser. Sketch whiteboard-style diagrams and save them locally.",
           icons: [
             {
               src: "android-chrome-192x192.png",
@@ -247,7 +247,7 @@ export default defineConfig(({ mode }) => {
             },
           ],
           start_url: "/",
-          id: "excalidraw",
+          id: "diagrams-free",
           display: "standalone",
           theme_color: "#121212",
           background_color: "#ffffff",

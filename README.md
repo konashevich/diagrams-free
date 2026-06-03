@@ -1,70 +1,27 @@
-<a href="https://excalidraw.com/" target="_blank" rel="noopener">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" alt="Excalidraw" srcset="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/github/excalidraw_github_cover_2_dark.png" />
-    <img alt="Excalidraw" src="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/github/excalidraw_github_cover_2.png" />
-  </picture>
-</a>
+# diagrams.free
 
-<h4 align="center">
-  <a href="https://excalidraw.com">Excalidraw Editor</a> |
-  <a href="https://plus.excalidraw.com/blog">Blog</a> |
-  <a href="https://docs.excalidraw.com">Documentation</a> |
-  <a href="https://plus.excalidraw.com">Excalidraw+</a>
-</h4>
+**diagrams.free** — hand-drawn diagrams in your browser.
 
-<div align="center">
-  <h2>
-    An open source virtual hand-drawn style whiteboard. </br>
-    Collaborative and end-to-end encrypted. </br>
-  <br />
-  </h2>
-</div>
+Live site (in progress): **[https://diagrams.free](https://diagrams.free)**  
+Staging on GitHub Pages: **[https://konashevich.github.io/excalidraw-save/](https://konashevich.github.io/excalidraw-save/)**
 
-<br />
-<p align="center">
-  <a href="https://github.com/excalidraw/excalidraw/blob/master/LICENSE">
-    <img alt="Excalidraw is released under the MIT license." src="https://img.shields.io/badge/license-MIT-blue.svg"  /></a>
-  <a href="https://www.npmjs.com/package/@excalidraw/excalidraw">
-    <img alt="npm downloads/month" src="https://img.shields.io/npm/dm/@excalidraw/excalidraw"  /></a>
-  <a href="https://docs.excalidraw.com/docs/introduction/contributing">
-    <img alt="PRs welcome!" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat"  /></a>
-  <a href="https://discord.gg/UexuTaE">
-    <img alt="Chat on Discord" src="https://img.shields.io/discord/723672430744174682?color=738ad6&label=Chat%20on%20Discord&logo=discord&logoColor=ffffff&widget=false"/></a>
-  <a href="https://deepwiki.com/excalidraw/excalidraw">
-    <img alt="Ask DeepWiki" src="https://deepwiki.com/badge.svg" /></a>
-  <a href="https://twitter.com/excalidraw">
-    <img alt="Follow Excalidraw on Twitter" src="https://img.shields.io/twitter/follow/excalidraw.svg?label=follow+@excalidraw&style=social&logo=twitter"/></a>
-</p>
+This repository ([konashevich/excalidraw-save](https://github.com/konashevich/excalidraw-save)) is a fork of [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT License). See [NOTICE](./NOTICE) for attribution.
 
-<div align="center">
-  <figure>
-    <a href="https://excalidraw.com" target="_blank" rel="noopener">
-      <img src="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/github%2Fproduct_showcase.png" alt="Product showcase" />
-    </a>
-    <figcaption>
-      <p align="center">
-        Create beautiful hand-drawn like diagrams, wireframes, or whatever you like.
-      </p>
-    </figcaption>
-  </figure>
-</div>
+- **Branding & IP clearance:** [docs/diagrams-free-branding-and-ip-clearance.md](./docs/diagrams-free-branding-and-ip-clearance.md)
+- **Scene vault design:** [docs/scene-vault-design.md](./docs/scene-vault-design.md)
+- **Feature flag:** `VITE_APP_SCENE_VAULT=true`
 
 ## excalidraw-save (this fork)
 
-This repository is maintained at [konashevich/excalidraw-save](https://github.com/konashevich/excalidraw-save) as a fork of [Excalidraw](https://github.com/excalidraw/excalidraw) focused on **local, browser-only multi-canvas storage** (“scene vault”) so reset/new does not permanently lose drawings.
+This fork adds **local, browser-only multi-canvas storage** (“scene vault”) so reset/new does not permanently lose drawings.
 
-- **Design & roadmap:** [docs/scene-vault-design.md](./docs/scene-vault-design.md)
-- **Feature flag:** `VITE_APP_SCENE_VAULT=true` (see [Development](#development-excalidraw-save))
-
-Upstream docs still apply for general development: [Development Guide](https://docs.excalidraw.com/docs/introduction/development).
+Upstream development docs: [Excalidraw Development Guide](https://docs.excalidraw.com/docs/introduction/development).
 
 ### Hosting
 
-Live app: **[https://konashevich.github.io/excalidraw-save/](https://konashevich.github.io/excalidraw-save/)**
+Pushes to `master` deploy automatically via [`.github/workflows/deploy-github-pages.yml`](.github/workflows/deploy-github-pages.yml). Details: [docs/github-pages-hosting.md](docs/github-pages-hosting.md).
 
-Pushes to `master` deploy automatically via [`.github/workflows/deploy-github-pages.yml`](.github/workflows/deploy-github-pages.yml). Details: [docs/github-pages-hosting.md](docs/github-pages-hosting.md). Scene vault is on in production; drawings stay in your browser (IndexedDB / localStorage).
-
-Shape libraries, share links, and collaboration still use Excalidraw’s public services (see `.env.production`) — no extra API keys for GitHub Pages.
+Production builds use **diagrams.free** branding and disable official Excalidraw cloud backends (see `.env.production`). Drawings stay in your browser (IndexedDB / localStorage) unless you explicitly export them.
 
 ### Development (excalidraw-save)
 
@@ -98,11 +55,9 @@ When `VITE_APP_SCENE_VAULT=true`:
 - **My scenes** stores additional named snapshots in **IndexedDB** on your device only.
 - **New canvas** archives the current drawing into the vault, then clears the editor.
 - **My scenes** dialog: Open, Rename, Duplicate, Delete, Download, and **Import file** (adds `.excalidraw` to the vault without replacing the active canvas).
-- Nothing is uploaded to Excalidraw servers unless you use existing share/export features.
+- Nothing is uploaded unless you explicitly export or use a sync feature you enable.
 
-## Features
-
-The Excalidraw editor (npm package) supports:
+## Features (from Excalidraw)
 
 - 💯&nbsp;Free & open-source.
 - 🎨&nbsp;Infinite, canvas-based whiteboard.

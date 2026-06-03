@@ -1,8 +1,4 @@
-import {
-  loginIcon,
-  ExcalLogo,
-  eyeIcon,
-} from "@excalidraw/excalidraw/components/icons";
+import { GithubIcon, eyeIcon } from "@excalidraw/excalidraw/components/icons";
 import { MainMenu } from "@excalidraw/excalidraw/index";
 import React from "react";
 
@@ -11,7 +7,7 @@ import { isDevEnv } from "@excalidraw/common";
 import type { Theme } from "@excalidraw/element/types";
 
 import { LanguageList } from "../app-language/LanguageList";
-import { isExcalidrawPlusSignedUser } from "../app_constants";
+import { GITHUB_REPO, SITE_URL } from "../branding/constants";
 
 import { saveDebugState } from "./DebugCanvas";
 
@@ -51,24 +47,12 @@ export const AppMainMenu: React.FC<{
       <MainMenu.DefaultItems.Help />
       {!props.sceneVaultEnabled && <MainMenu.DefaultItems.ClearCanvas />}
       <MainMenu.Separator />
-      <MainMenu.ItemLink
-        icon={ExcalLogo}
-        href={`${
-          import.meta.env.VITE_APP_PLUS_LP
-        }/plus?utm_source=excalidraw&utm_medium=app&utm_content=hamburger`}
-        className=""
-      >
-        Excalidraw+
+      <MainMenu.ItemLink icon={GithubIcon} href={GITHUB_REPO}>
+        GitHub
       </MainMenu.ItemLink>
-      <MainMenu.DefaultItems.Socials />
-      <MainMenu.ItemLink
-        icon={loginIcon}
-        href={`${import.meta.env.VITE_APP_PLUS_APP}${
-          isExcalidrawPlusSignedUser ? "" : "/sign-up"
-        }?utm_source=signin&utm_medium=app&utm_content=hamburger`}
-        className="highlighted"
-      >
-        {isExcalidrawPlusSignedUser ? "Sign in" : "Sign up"}
+      <MainMenu.ItemLink href={`${SITE_URL}/about/`}>About</MainMenu.ItemLink>
+      <MainMenu.ItemLink href={`${SITE_URL}/privacy/`}>
+        Privacy
       </MainMenu.ItemLink>
       {isDevEnv() && (
         <MainMenu.Item

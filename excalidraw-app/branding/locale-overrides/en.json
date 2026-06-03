@@ -1,0 +1,45 @@
+{
+  "buttons": {
+    "addWatermark": "Add \"Made with diagrams.free\"",
+    "madeWithExcalidraw": "Made with diagrams.free"
+  },
+  "labels": {
+    "excalidrawLib": "Shape library",
+    "installPWA": "Install diagrams.free locally (PWA)",
+    "mermaidToExcalidraw": "Mermaid to diagram"
+  },
+  "alerts": {
+    "uploadedSecurly": "The upload has been secured with end-to-end encryption, which means that the server and third parties can't read the content.",
+    "invalidSceneUrl": "Couldn't import scene from the supplied URL. It's either malformed, or doesn't contain valid diagram JSON data."
+  },
+  "roomDialog": {
+    "shareTitle": "Join a live collaboration session on diagrams.free"
+  },
+  "encrypted": {
+    "tooltip": "Your drawings are end-to-end encrypted so the server will never see them.",
+    "link": "Learn more about encryption"
+  },
+  "welcomeScreen": {
+    "app": {
+      "center_heading_plus": "Did you want to go to your account instead?"
+    }
+  },
+  "overwriteConfirm": {
+    "action": {
+      "excalidrawPlus": {
+        "title": "Cloud export",
+        "button": "Export to cloud",
+        "description": "Save the scene to your cloud workspace."
+      }
+    }
+  },
+  "mermaid": {
+    "title": "Mermaid to diagram",
+    "description": "Currently only <flowchartLink>Flowchart</flowchartLink>, <sequenceLink>Sequence</sequenceLink>, <classLink>Class</classLink>, and <erdLink>Entity Relationship</erdLink> Diagrams are supported. The other types will be rendered as an image in the editor."
+  },
+  "ttd": {
+    "rateLimit": {
+      "messageLimit": "You've hit your AI limit for today. Please come back tomorrow."
+    }
+  }
+}

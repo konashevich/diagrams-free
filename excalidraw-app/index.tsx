@@ -4,7 +4,10 @@ import { registerSW } from "virtual:pwa-register";
 
 import "../excalidraw-app/sentry";
 
+import { applyBranding } from "./branding/applyBranding";
 import ExcalidrawApp from "./App";
+
+applyBranding();
 
 window.__EXCALIDRAW_SHA__ = import.meta.env.VITE_APP_GIT_SHA;
 const rootElement = document.getElementById("root")!;
