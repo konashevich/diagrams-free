@@ -1,11 +1,11 @@
 {
-  "buttons": {
-    "addWatermark": "Add \"Made with diagrams.free\"",
-    "madeWithExcalidraw": "Made with diagrams.free"
-  },
   "labels": {
+    "addWatermark": "Add \"Made with diagrams.free\"",
+    "madeWithExcalidraw": "Made with diagrams.free",
     "excalidrawLib": "Shape library",
-    "installPWA": "Install diagrams.free locally (PWA)",
+    "installPWA": "Install diagrams.free locally (PWA)"
+  },
+  "toolBar": {
     "mermaidToExcalidraw": "Mermaid to diagram"
   },
   "alerts": {
@@ -14,6 +14,11 @@
   },
   "roomDialog": {
     "shareTitle": "Join a live collaboration session on diagrams.free"
+  },
+  "exportDialog": {
+    "excalidrawplus_description": "Save the scene to your cloud workspace.",
+    "excalidrawplus_button": "Export",
+    "excalidrawplus_exportError": "Couldn't export to cloud at this moment..."
   },
   "encrypted": {
     "tooltip": "Your drawings are end-to-end encrypted so the server will never see them.",
@@ -37,9 +42,10 @@
     "title": "Mermaid to diagram",
     "description": "Currently only <flowchartLink>Flowchart</flowchartLink>, <sequenceLink>Sequence</sequenceLink>, <classLink>Class</classLink>, and <erdLink>Entity Relationship</erdLink> Diagrams are supported. The other types will be rendered as an image in the editor."
   },
-  "ttd": {
+  "chat": {
     "rateLimit": {
       "messageLimit": "You've hit your AI limit for today. Please come back tomorrow."
-    }
+    },
+    "upsellBtnLabel": ""
   }
 }
