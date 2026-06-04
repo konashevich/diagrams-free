@@ -11,6 +11,18 @@ Copyright (c) 2020 Excalidraw and distributed under the MIT License. See [LICENS
 The Excalidraw source code is used under the terms of the MIT License, which requires retaining
 the copyright notice above in copies or substantial portions of the software.
 
+## Bundled fonts
+
+The editor ships several web fonts. Primary hand-drawn fonts used by diagrams.free:
+
+| Font | Copyright | License |
+|------|-----------|---------|
+| **Indie Flower** | Copyright (c) 2010 Kimberly Geswein | [SIL Open Font License 1.1](https://openfontlicense.org) |
+| **Excalifont** | Copyright (c) 2024 Excalidraw; modifications by DizajnDesign | [SIL Open Font License 1.1](https://scripts.sil.org/OFL) |
+
+Other fonts bundled from upstream Excalidraw (Virgil, Cascadia, Assistant, and others) retain
+their respective licenses in the Excalidraw source tree under `packages/excalidraw/fonts/`.
+
 ## diagrams.free fork
 
 Additional changes in this repository are maintained at

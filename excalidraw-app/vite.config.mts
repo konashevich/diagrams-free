@@ -278,34 +278,18 @@ export default defineConfig(({ mode }) => {
           },
           screenshots: [
             {
-              src: "/screenshots/virtual-whiteboard.png",
+              src: "/screenshots/app-mobile.png",
               type: "image/png",
               sizes: "462x945",
+              form_factor: "narrow",
+              label: "diagrams.free on mobile",
             },
             {
-              src: "/screenshots/wireframe.png",
+              src: "/screenshots/app-wide.png",
               type: "image/png",
-              sizes: "462x945",
-            },
-            {
-              src: "/screenshots/illustration.png",
-              type: "image/png",
-              sizes: "462x945",
-            },
-            {
-              src: "/screenshots/shapes.png",
-              type: "image/png",
-              sizes: "462x945",
-            },
-            {
-              src: "/screenshots/collaboration.png",
-              type: "image/png",
-              sizes: "462x945",
-            },
-            {
-              src: "/screenshots/export.png",
-              type: "image/png",
-              sizes: "462x945",
+              sizes: "1280x720",
+              form_factor: "wide",
+              label: "diagrams.free in the browser",
             },
           ],
         },
