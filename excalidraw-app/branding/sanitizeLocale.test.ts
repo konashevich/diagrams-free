@@ -54,6 +54,60 @@ describe("sanitizeLocaleBrandStrings", () => {
   });
 });
 
+describe("English locale pipeline", () => {
+  it("matches en overrides + sanitizer (no Excalidraw brand)", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+    const enPath = join(
+      import.meta.dirname,
+      "../../packages/excalidraw/locales/en.json",
+    );
+    const overridesPath = join(import.meta.dirname, "./locale-overrides/en.json");
+    const en = JSON.parse(await readFile(enPath, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    const overrides = JSON.parse(await readFile(overridesPath, "utf8")) as Record<
+      string,
+      unknown
+    >;
+
+    const deepMerge = (
+      target: Record<string, unknown>,
+      source: Record<string, unknown>,
+    ): Record<string, unknown> => {
+      const result = { ...target };
+      for (const key of Object.keys(source)) {
+        const sourceValue = source[key];
+        const targetValue = target[key];
+        if (
+          sourceValue &&
+          typeof sourceValue === "object" &&
+          !Array.isArray(sourceValue) &&
+          targetValue &&
+          typeof targetValue === "object" &&
+          !Array.isArray(targetValue)
+        ) {
+          result[key] = deepMerge(
+            targetValue as Record<string, unknown>,
+            sourceValue as Record<string, unknown>,
+          );
+        } else {
+          result[key] = sourceValue;
+        }
+      }
+      return result;
+    };
+
+    const merged = deepMerge(en, overrides);
+    const sanitized = sanitizeLocaleBrandStrings(merged);
+    expect(containsExcalidrawBrand(sanitized)).toBe(false);
+    expect(
+      (sanitized.labels as Record<string, string>).madeWithExcalidraw,
+    ).toBe("Made with diagrams.free");
+  });
+});
+
 describe("all upstream locales", () => {
   it("have no Excalidraw branding after sanitization", async () => {
     const { readdir, readFile } = await import("node:fs/promises");

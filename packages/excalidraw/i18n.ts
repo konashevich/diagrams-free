@@ -95,6 +95,21 @@ let localePostProcessor:
       langCode: string,
     ) => Record<string, unknown>)
   | null = null;
+/** Sanitized en fallback for missing keys in partial locale files (see `t()`). */
+let sanitizedFallbackLangData: Record<string, unknown> | null = null;
+
+const recomputeSanitizedFallback = () => {
+  if (!localePostProcessor) {
+    sanitizedFallbackLangData = null;
+    return;
+  }
+  let data = fallbackLangData as Record<string, unknown>;
+  const enOverrides = localeOverridesByLang.en;
+  if (enOverrides) {
+    data = deepMerge(data, enOverrides);
+  }
+  sanitizedFallbackLangData = localePostProcessor(data, "en");
+};
 
 const deepMerge = (
   target: Record<string, unknown>,
@@ -127,6 +142,7 @@ export const setLocaleOverrides = (
   overrides: Record<string, Record<string, unknown>>,
 ) => {
   localeOverridesByLang = overrides;
+  recomputeSanitizedFallback();
 };
 
 /** App-level hook (e.g. diagrams.free) to sanitize branding in every loaded locale. */
@@ -139,6 +155,7 @@ export const setLocalePostProcessor = (
     | null,
 ) => {
   localePostProcessor = processor;
+  recomputeSanitizedFallback();
 };
 
 export const setLanguage = async (lang: Language) => {
@@ -153,7 +170,7 @@ export const setLanguage = async (lang: Language) => {
       currentLangData = await import(`./locales/${currentLang.code}.json`);
     } catch (error: any) {
       console.error(`Failed to load language ${lang.code}:`, error.message);
-      currentLangData = fallbackLangData;
+      currentLangData = sanitizedFallbackLangData ?? fallbackLangData;
     }
   }
 
@@ -204,9 +221,10 @@ export const t = (
   }
 
   const parts = path.split(".");
+  const fallbackData = sanitizedFallbackLangData ?? fallbackLangData;
   let translation =
     findPartsForData(currentLangData, parts) ||
-    findPartsForData(fallbackLangData, parts) ||
+    findPartsForData(fallbackData, parts) ||
     fallback;
   if (translation === undefined) {
     const errorMessage = `Can't find translation for ${path}`;
