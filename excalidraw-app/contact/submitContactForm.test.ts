@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
 
+import { parseContactFormResponse } from "./submitContactForm";
 import { validateContactForm } from "./contactFormValidation";
+
+describe("parseContactFormResponse", () => {
+  it("parses plain JSON", () => {
+    expect(parseContactFormResponse('{"ok":true}')).toEqual({ ok: true });
+  });
+
+  it("extracts JSON from HTML wrapper", () => {
+    expect(
+      parseContactFormResponse('<html><body>{"ok":false,"error":"rateLimited"}</body>'),
+    ).toEqual({ ok: false, error: "rateLimited" });
+  });
+});
 
 describe("validateContactForm", () => {
   it("rejects empty fields", () => {

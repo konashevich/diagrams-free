@@ -45,7 +45,7 @@ function doPost(e) {
     if (isRateLimited(payload.email)) {
       return jsonResponse({
         ok: false,
-        error: "Too many messages. Please try again later.",
+        error: "rateLimited",
       });
     }
 

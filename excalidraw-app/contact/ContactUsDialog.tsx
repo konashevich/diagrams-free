@@ -77,7 +77,10 @@ export const ContactUsDialog = ({ isOpen, onClose, excalidrawAPI }: Props) => {
       const serverError = result.error;
       if (serverError === "sendFailed") {
         setError(t("contactUs.errors.sendFailed"));
-      } else if (serverError?.includes("Too many messages")) {
+      } else if (
+        serverError === "rateLimited" ||
+        serverError?.includes("Too many messages")
+      ) {
         setError(t("contactUs.errors.rateLimited"));
       } else if (serverError) {
         setError(serverError);

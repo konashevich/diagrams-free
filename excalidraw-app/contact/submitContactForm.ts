@@ -14,13 +14,20 @@ export { validateContactForm } from "./contactFormValidation";
 
 export type { ContactFormErrorCode } from "./contactFormValidation";
 
-const parseContactFormResponse = (text: string): ContactFormResponse | null => {
+export const parseContactFormResponse = (
+  text: string,
+): ContactFormResponse | null => {
   const trimmed = text.trim();
-  if (!trimmed.startsWith("{")) {
+  const jsonMatch = trimmed.match(/\{[\s\S]*"ok"\s*:\s*(?:true|false)[\s\S]*\}/);
+  const candidate =
+    jsonMatch?.[0] ?? (trimmed.startsWith("{") ? trimmed : null);
+
+  if (!candidate) {
     return null;
   }
+
   try {
-    const data = JSON.parse(trimmed) as ContactFormResponse;
+    const data = JSON.parse(candidate) as ContactFormResponse;
     if (data && typeof data.ok === "boolean") {
       return data;
     }
@@ -40,8 +47,8 @@ const buildBody = (payload: ContactFormPayload): string =>
   });
 
 /**
- * Apps Script web apps answer POST with a 302; the JSON body is on a follow-up GET.
- * fetch(..., redirect: "follow") often keeps POST on the redirect → 405 in strict clients.
+ * Apps Script web apps process POST, then redirect to a one-time URL with the JSON reply.
+ * The message is sent on the first leg; a parse failure must not look like a send failure.
  */
 export const submitContactForm = async (
   url: string,
@@ -50,31 +57,22 @@ export const submitContactForm = async (
   const body = buildBody(payload);
   const headers = { "Content-Type": "text/plain;charset=utf-8" };
 
-  const first = await fetch(url, {
+  const response = await fetch(url, {
     method: "POST",
-    redirect: "manual",
+    redirect: "follow",
     headers,
     body,
   });
 
-  const redirectUrl = first.headers.get("Location");
-  if (
-    redirectUrl &&
-    (first.status === 302 || first.status === 303 || first.status === 307)
-  ) {
-    const second = await fetch(redirectUrl, {
-      method: "GET",
-      redirect: "follow",
-    });
-    const parsed = parseContactFormResponse(await second.text());
-    if (parsed) {
-      return parsed;
-    }
+  const text = await response.text();
+  const parsed = parseContactFormResponse(text);
+  if (parsed) {
+    return parsed;
   }
 
-  const direct = parseContactFormResponse(await first.text());
-  if (direct) {
-    return direct;
+  // POST reached Google (redirect happened) but the JSON body was not readable — treat as sent.
+  if (response.redirected) {
+    return { ok: true };
   }
 
   return {
