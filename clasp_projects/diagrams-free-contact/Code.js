@@ -85,9 +85,12 @@ function doPost(e) {
 
     if (!isOwnerInbox(email)) {
       try {
-        GmailApp.sendEmail(email, confirmSubject, confirmBody, {
-          name: FROM_NAME,
-        });
+        GmailApp.sendEmail(
+          email,
+          confirmSubject,
+          confirmBody,
+          outboundOptions(SUPPORT_EMAIL),
+        );
       } catch (confirmError) {
         console.warn("Confirmation email failed: " + confirmError);
       }
@@ -155,22 +158,47 @@ function validatePayload(payload) {
  * @param {string} replyTo
  */
 function sendToSupport(subject, body, replyTo) {
-  var options = {
-    name: FROM_NAME,
-    replyTo: replyTo,
-  };
-
   try {
-    GmailApp.sendEmail(SUPPORT_EMAIL, subject, body, options);
+    GmailApp.sendEmail(
+      SUPPORT_EMAIL,
+      subject,
+      body,
+      outboundOptions(replyTo),
+    );
   } catch (firstError) {
     console.warn("Support send failed, using fallback: " + firstError);
     GmailApp.sendEmail(
       FALLBACK_EMAIL,
       "[contact-form-fallback] " + subject,
       body + "\n\n(Original To: " + SUPPORT_EMAIL + ")",
-      options,
+      outboundOptionsFallback(replyTo),
     );
   }
+}
+
+/**
+ * Send as support@ (Gmail “Send mail as” alias on the script account).
+ * @param {string} replyTo
+ * @returns {GoogleAppsScript.Mail.MailAdvancedParameters}
+ */
+function outboundOptions(replyTo) {
+  return {
+    from: SUPPORT_EMAIL,
+    name: FROM_NAME,
+    replyTo: replyTo || SUPPORT_EMAIL,
+  };
+}
+
+/**
+ * If sending as support@ fails, fall back to default account From.
+ * @param {string} replyTo
+ * @returns {GoogleAppsScript.Mail.MailAdvancedParameters}
+ */
+function outboundOptionsFallback(replyTo) {
+  return {
+    name: FROM_NAME,
+    replyTo: replyTo || SUPPORT_EMAIL,
+  };
 }
 
 /**

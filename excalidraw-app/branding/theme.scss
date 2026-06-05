@@ -53,13 +53,18 @@
     --color-selection: #5544aa;
     --color-logo-text: #e8e4ff;
     --color-on-primary-container: #eae6ff;
-    --color-surface-primary-container: #4a4468;
+    // Selected tool fill: neutral lift (brand reads on gradient ring, not purple wash).
+    --color-surface-primary-container: #3a3a42;
     --color-promo: #ff9944;
 
-    --color-surface-high: #2c2c38;
-    --color-surface-low: hsl(240, 10%, 14%);
-    --island-bg-color: #242430;
-    --color-slider-track: hsl(250, 25%, 38%);
+    // Neutral dark surfaces — align with canvas (#121212), avoid blue-violet tray tint.
+    --color-surface-high: #2e2e2e;
+    --color-surface-mid: #262626;
+    --color-surface-low: #1a1a1a;
+    --island-bg-color: #232323;
+    --default-border-color: #3a3a3a;
+    --button-hover-bg: #383838;
+    --color-slider-track: hsl(0, 0%, 28%);
     --focus-highlight-color: #6699ee;
 
     --color-primary-contrast-offset: #8888ee;
@@ -67,15 +72,17 @@
     --df-gradient-stop-blue: #9a9aee;
     --df-gradient-stop-magenta: #cc88ee;
     --df-gradient-stop-orange: #ff9944;
-    --df-brand-gradient-glow: rgba(154, 154, 238, 0.2);
+    --df-brand-gradient-glow: rgba(255, 255, 255, 0.06);
 
     --link-color: #9a9aee;
     --link-color-hover: #b0b0ff;
     --link-color-active: #cc88ee;
   }
 
-  &.theme--dark .shape-actions-theme-scope {
-    --button-hover-bg: #363541;
+  &.theme--dark .shape-actions-theme-scope,
+  &.theme--dark .App-menu__left,
+  &.theme--dark .App-mobile-menu {
     --button-bg: var(--color-surface-high);
+    --button-hover-bg: #383838;
   }
 }

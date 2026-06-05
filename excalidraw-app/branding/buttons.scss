@@ -28,7 +28,6 @@
     .App-toolbar--mobile,
     .mobile-toolbar {
       --button-bg: var(--color-surface-high);
-      --button-hover-bg: #363541;
     }
   }
 
@@ -66,7 +65,6 @@
   &.theme--dark .compact-shape-actions-island,
   &.theme--dark .compact-shape-actions {
     --button-bg: var(--color-surface-high);
-    --button-hover-bg: #363541;
 
     .compact-action-button {
       @include df-brand-gradient-border($fill: var(--color-surface-high));
@@ -149,6 +147,5 @@
 
   &.theme--dark .mobile-misc-tools-container {
     --button-bg: var(--color-surface-high);
-    --button-hover-bg: #363541;
   }
 }
