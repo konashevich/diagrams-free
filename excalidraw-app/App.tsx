@@ -140,9 +140,12 @@ import {
   GITHUB_REPO,
   isAIBackendEnabled,
   isCollabBackendEnabled,
+  isContactFormEnabled,
   isGoogleDriveShareEnabled,
   isOfficialShareBackendEnabled,
 } from "./branding/constants";
+import { ContactUsDialog } from "./contact/ContactUsDialog";
+import { CONTACT_US_OPEN_EVENT } from "./contact/openContactUs";
 import { driveShareService, parseShareFileIdFromLocation } from "./google-drive";
 import {
   SceneVaultDialog,
@@ -482,6 +485,22 @@ const ExcalidrawWrapper = () => {
   }, []);
 
   const [sceneVaultDialogOpen, setSceneVaultDialogOpen] = useState(false);
+  const [contactUsDialogOpen, setContactUsDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isContactFormEnabled()) {
+      return;
+    }
+    const openContactUs = () => {
+      excalidrawAPI?.updateScene({ appState: { openDialog: null } });
+      setContactUsDialogOpen(true);
+    };
+    window.addEventListener(CONTACT_US_OPEN_EVENT, openContactUs);
+    return () => {
+      window.removeEventListener(CONTACT_US_OPEN_EVENT, openContactUs);
+    };
+  }, [excalidrawAPI]);
+
   const [activeVaultSceneId, setActiveVaultSceneId] = useState<string | null>(
     null,
   );
@@ -1196,6 +1215,13 @@ const ExcalidrawWrapper = () => {
             link={latestShareableLink}
             onCloseRequest={() => setLatestShareableLink(null)}
             setErrorMessage={setErrorMessage}
+          />
+        )}
+        {excalidrawAPI && isContactFormEnabled() && (
+          <ContactUsDialog
+            isOpen={contactUsDialogOpen}
+            onClose={() => setContactUsDialogOpen(false)}
+            excalidrawAPI={excalidrawAPI}
           />
         )}
         {excalidrawAPI && sceneVaultEnabled && (

@@ -56,5 +56,35 @@
     "brave_measure_text_error": {
       "line4": "If disabling this setting doesn't fix the display of text elements, please open an <issueLink>issue</issueLink> on GitHub or email <supportLink>support@diagrams.free</supportLink>."
     }
+  },
+  "contactUs": {
+    "title": "Contact us",
+    "menuItem": "Contact us",
+    "helpButton": "Contact us",
+    "intro": "Send feedback or questions to diagrams.free support. All fields are required.",
+    "submit": "Submit",
+    "fields": {
+      "name": "Name",
+      "subject": "Subject",
+      "email": "Email",
+      "message": "Message"
+    },
+    "toast": {
+      "success": "Thanks — your message was sent. We'll reply to the email you provided."
+    },
+    "errors": {
+      "notConfigured": "Contact form is not available. Please email support@diagrams.free.",
+      "sendFailed": "Could not send message. Please try again or email support@diagrams.free.",
+      "rateLimited": "Too many messages. Please wait a few minutes and try again.",
+      "nameRequired": "Name is required",
+      "nameTooLong": "Name is too long",
+      "subjectRequired": "Subject is required",
+      "subjectTooLong": "Subject must be 30 characters or fewer",
+      "emailRequired": "Email is required",
+      "emailInvalid": "Enter a valid email address",
+      "messageRequired": "Message is required",
+      "messageTooLong": "Message must be 2000 characters or fewer",
+      "unsafeCharacters": "Remove line breaks from the form fields"
+    }
   }
 }

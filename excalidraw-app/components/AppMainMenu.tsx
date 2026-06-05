@@ -1,5 +1,6 @@
 import { eyeIcon } from "@excalidraw/excalidraw/components/icons";
 import { MainMenu } from "@excalidraw/excalidraw/index";
+import { t } from "@excalidraw/excalidraw/i18n";
 import React from "react";
 
 import { isDevEnv } from "@excalidraw/common";
@@ -7,7 +8,8 @@ import { isDevEnv } from "@excalidraw/common";
 import type { Theme } from "@excalidraw/element/types";
 
 import { LanguageList } from "../app-language/LanguageList";
-import { SITE_URL } from "../branding/constants";
+import { isContactFormEnabled, SITE_URL } from "../branding/constants";
+import { openContactUsDialog } from "../contact/openContactUs";
 
 import { saveDebugState } from "./DebugCanvas";
 
@@ -62,6 +64,11 @@ export const AppMainMenu: React.FC<{
       <MainMenu.DefaultItems.Help />
       {!props.sceneVaultEnabled && <MainMenu.DefaultItems.ClearCanvas />}
       <MainMenu.Separator />
+      {isContactFormEnabled() && (
+        <MainMenu.Item onSelect={openContactUsDialog}>
+          {t("contactUs.menuItem")}
+        </MainMenu.Item>
+      )}
       <MainMenu.ItemLink href={`${SITE_URL}/about/`}>About</MainMenu.ItemLink>
       <MainMenu.ItemLink href={`${SITE_URL}/privacy/`}>
         Privacy

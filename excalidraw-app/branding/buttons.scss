@@ -1,0 +1,88 @@
+@use "./gradient-border" as *;
+
+// Pale controls — logo gradient borders (docs/diagrams-free-brand-colors-plan.md §5a).
+.excalidraw {
+  .App-menu__left,
+  .App-mobile-menu,
+  .shape-actions-theme-scope {
+    .buttonList {
+      @include df-button-list-pale-controls;
+    }
+  }
+
+  // Main shape toolbar (top center).
+  .App-toolbar-container,
+  .App-toolbar--mobile,
+  .mobile-toolbar {
+    --button-bg: var(--color-surface-mid);
+
+    @include df-toolbar-pale-tool-icons;
+  }
+
+  &.theme--dark {
+    .App-toolbar-container,
+    .App-toolbar--mobile,
+    .mobile-toolbar {
+      --button-bg: var(--color-surface-high);
+      --button-hover-bg: #363541;
+    }
+  }
+
+  .compact-shape-actions-island,
+  .compact-shape-actions {
+    .compact-action-button {
+      @include df-brand-gradient-border($fill: var(--color-surface-mid));
+
+      &:hover {
+        @include df-brand-gradient-border-hover;
+      }
+
+      &:active,
+      &.active {
+        @include df-brand-gradient-border-selected;
+      }
+    }
+  }
+
+  &.theme--dark .compact-shape-actions-island,
+  &.theme--dark .compact-shape-actions {
+    .compact-action-button {
+      @include df-brand-gradient-border($fill: var(--color-surface-high));
+
+      &:hover {
+        @include df-brand-gradient-border-hover;
+      }
+    }
+  }
+
+  // Zoom / undo strips (replace flat white ring).
+  .zoom-actions,
+  .undo-redo-buttons {
+    box-shadow: none !important;
+
+    button {
+      @include df-brand-gradient-border($fill: var(--color-surface-low));
+
+      &:hover {
+        @include df-brand-gradient-border-hover;
+      }
+
+      &:active {
+        @include df-brand-gradient-border-active;
+      }
+    }
+  }
+
+  .help-icon,
+  .main-menu-trigger {
+    @include df-brand-gradient-border($fill: var(--color-surface-low));
+
+    &:hover {
+      @include df-brand-gradient-border-hover($fill: var(--color-surface-high));
+    }
+
+    &:active {
+      @include df-brand-gradient-border-active;
+    }
+  }
+}

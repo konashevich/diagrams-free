@@ -10,7 +10,9 @@ import { t } from "../i18n";
 import { getShortcutKey } from "../shortcut";
 
 import { Dialog } from "./Dialog";
-import { GithubIcon } from "./icons";
+import { CONTACT_US_OPEN_EVENT } from "../constants/contactUs";
+
+import { GithubIcon, messageCircleIcon } from "./icons";
 
 import "./HelpDialog.scss";
 
@@ -30,6 +32,18 @@ const Header = () => (
       <div className="HelpDialog__link-icon">{GithubIcon}</div>
       {t("helpDialog.github")}
     </a>
+    {import.meta.env.VITE_APP_CONTACT_FORM_URL?.trim() ? (
+      <button
+        type="button"
+        className="HelpDialog__btn"
+        onClick={() =>
+          window.dispatchEvent(new CustomEvent(CONTACT_US_OPEN_EVENT))
+        }
+      >
+        <div className="HelpDialog__link-icon">{messageCircleIcon}</div>
+        {t("contactUs.helpButton")}
+      </button>
+    ) : null}
   </div>
 );
 

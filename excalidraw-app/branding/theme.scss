@@ -1,0 +1,81 @@
+// diagrams.free brand colors — overrides Excalidraw indigo UI tokens.
+// See docs/diagrams-free-brand-colors-plan.md
+
+.excalidraw {
+  --color-primary: #6666cc;
+  --color-primary-darker: #5555b8;
+  --color-primary-darkest: #443d99;
+  --color-primary-light: #e8e8fa;
+  --color-primary-light-darker: #d8d8f5;
+  --color-primary-hover: #5a5abf;
+  --color-brand-active: #9944bb;
+  --color-brand-hover: #7070cc;
+  --color-selection: #7755dd;
+  --color-logo-text: #3d2d66;
+  --color-on-primary-container: #2a2560;
+  --color-surface-primary-container: #ddd8f5;
+  --color-promo: #ff6600;
+
+  --color-surface-high: #eeeef8;
+  --color-surface-low: #e8e8f0;
+  --color-surface-mid: #f4f4f8;
+  --color-border-outline-variant: #c4c4d4;
+  --color-slider-track: hsl(240, 40%, 92%);
+  --focus-highlight-color: #99bbee;
+
+  --link-color: #5555b8;
+  --link-color-hover: #443d99;
+  --link-color-active: #9944bb;
+
+  --color-primary-contrast-offset: #5e5ec4;
+
+  --df-gradient-stop-blue: #6666cc;
+  --df-gradient-stop-magenta: #9944bb;
+  --df-gradient-stop-orange: #ff6600;
+  --df-brand-gradient-border-width: 1.5px;
+  --df-brand-gradient-border: linear-gradient(
+    135deg,
+    var(--df-gradient-stop-blue) 0%,
+    var(--df-gradient-stop-magenta) 50%,
+    var(--df-gradient-stop-orange) 100%
+  );
+  --df-brand-gradient-glow: rgba(102, 102, 204, 0.12);
+
+  &.theme--dark {
+    --color-primary: #9a9aee;
+    --color-primary-darker: #a8a8f0;
+    --color-primary-darkest: #b8b8ff;
+    --color-primary-light: #454560;
+    --color-primary-light-darker: #3a3a52;
+    --color-primary-hover: #b0b0ff;
+    --color-brand-active: #cc88ee;
+    --color-brand-hover: #b8b8ff;
+    --color-selection: #5544aa;
+    --color-logo-text: #e8e4ff;
+    --color-on-primary-container: #eae6ff;
+    --color-surface-primary-container: #4a4468;
+    --color-promo: #ff9944;
+
+    --color-surface-high: #2c2c38;
+    --color-surface-low: hsl(240, 10%, 14%);
+    --island-bg-color: #242430;
+    --color-slider-track: hsl(250, 25%, 38%);
+    --focus-highlight-color: #6699ee;
+
+    --color-primary-contrast-offset: #8888ee;
+
+    --df-gradient-stop-blue: #9a9aee;
+    --df-gradient-stop-magenta: #cc88ee;
+    --df-gradient-stop-orange: #ff9944;
+    --df-brand-gradient-glow: rgba(154, 154, 238, 0.2);
+
+    --link-color: #9a9aee;
+    --link-color-hover: #b0b0ff;
+    --link-color-active: #cc88ee;
+  }
+
+  &.theme--dark .shape-actions-theme-scope {
+    --button-hover-bg: #363541;
+    --button-bg: var(--color-surface-high);
+  }
+}

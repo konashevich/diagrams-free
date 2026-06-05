@@ -1,0 +1,101 @@
+/// Logo-gradient border for pale (surface-filled) UI controls.
+@mixin df-brand-gradient-border(
+  $fill: var(--button-bg, var(--color-surface-mid)),
+  $width: var(--df-brand-gradient-border-width, 1.5px)
+) {
+  border: $width solid transparent !important;
+  background:
+    linear-gradient($fill, $fill) padding-box,
+    var(--df-brand-gradient-border) border-box !important;
+  background-clip: padding-box, border-box;
+  box-shadow: none !important;
+}
+
+@mixin df-brand-gradient-border-hover(
+  $fill: var(--button-hover-bg, var(--color-surface-high))
+) {
+  @include df-brand-gradient-border($fill: $fill);
+  box-shadow: 0 0 0 3px var(--df-brand-gradient-glow) !important;
+}
+
+@mixin df-brand-gradient-border-active(
+  $fill: var(--button-hover-bg, var(--color-surface-high))
+) {
+  border-width: 2px !important;
+  @include df-brand-gradient-border($fill: $fill, $width: 2px);
+}
+
+@mixin df-brand-gradient-border-selected {
+  border-width: 2px !important;
+  background:
+    linear-gradient(
+        var(--color-surface-primary-container),
+        var(--color-surface-primary-container)
+      )
+      padding-box,
+    var(--df-brand-gradient-border) border-box !important;
+  background-clip: padding-box, border-box;
+  box-shadow: none !important;
+}
+
+@mixin df-pale-tool-icon {
+  @include df-brand-gradient-border(
+    $fill: var(--button-bg, var(--color-surface-mid))
+  );
+
+  &:hover {
+    @include df-brand-gradient-border-hover;
+  }
+
+  &:active {
+    @include df-brand-gradient-border-active;
+  }
+}
+
+/// ToolIcon labels get package outline styles; clear the shell so only __icon shows the ring.
+@mixin df-clear-toolicon-label-shell {
+  > label.ToolIcon {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+}
+
+@mixin df-button-list-pale-controls {
+  @include df-clear-toolicon-label-shell;
+
+  .ToolIcon .ToolIcon__icon {
+    @include df-pale-tool-icon;
+  }
+
+  .ToolIcon_type_radio:checked + .ToolIcon__icon,
+  .ToolIcon_type_checkbox:checked + .ToolIcon__icon {
+    @include df-brand-gradient-border-selected;
+  }
+
+  > button:not(.ToolIcon),
+  > .zIndexButton {
+    @include df-brand-gradient-border(
+      $fill: var(--button-bg, var(--color-surface-mid))
+    );
+
+    &:hover {
+      @include df-brand-gradient-border-hover;
+    }
+
+    &:active {
+      @include df-brand-gradient-border-active;
+    }
+  }
+}
+
+@mixin df-toolbar-pale-tool-icons {
+  .ToolIcon .ToolIcon__icon {
+    @include df-pale-tool-icon;
+  }
+
+  .ToolIcon_type_radio:checked + .ToolIcon__icon,
+  .ToolIcon_type_checkbox:checked + .ToolIcon__icon {
+    @include df-brand-gradient-border-selected;
+  }
+}

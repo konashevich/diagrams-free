@@ -197,6 +197,7 @@ If `yarn install` fails with `ENOSPC`, set `TMPDIR` and `YARN_CACHE_FOLDER` to a
 | Branding & IP clearance | [docs/diagrams-free-branding-and-ip-clearance.md](docs/diagrams-free-branding-and-ip-clearance.md) |
 | Privacy policy (GA4, Drive, local data) | [public/privacy/index.html](public/privacy/index.html) |
 | GA4 product analytics plan | [docs/ga4-analytics-plan.md](docs/ga4-analytics-plan.md) |
+| Contact us / feedback form | [docs/contact-us-plan.md](docs/contact-us-plan.md) · `clasp_projects/diagrams-free-contact/` |
 | Shape libraries | [docs/libraries-overview.md](docs/libraries-overview.md) |
 | Upstream editor development | [docs.excalidraw.com](https://docs.excalidraw.com/docs/introduction/development) |
 
