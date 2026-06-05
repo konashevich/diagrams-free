@@ -21,17 +21,26 @@ const DONATE_LINK_ENV: Record<DonateKind, Record<DonateTier, string>> = {
   },
 };
 
+const PRESET_TIERS = ["199", "500", "1000"] as const;
+
 export const buildDonateLinks = (): DonateLinks | null => {
   const once = {} as Record<DonateTier, string>;
   const monthly = {} as Record<DonateTier, string>;
 
-  for (const tier of ["199", "500", "1000", "custom"] as const) {
+  for (const tier of PRESET_TIERS) {
     once[tier] = readEnv(DONATE_LINK_ENV.once[tier]);
     monthly[tier] = readEnv(DONATE_LINK_ENV.monthly[tier]);
     if (!once[tier] || !monthly[tier]) {
       return null;
     }
   }
+
+  once.custom = readEnv(DONATE_LINK_ENV.once.custom);
+  if (!once.custom) {
+    return null;
+  }
+
+  monthly.custom = readEnv(DONATE_LINK_ENV.monthly.custom);
 
   return { once, monthly };
 };

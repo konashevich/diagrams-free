@@ -26,10 +26,12 @@ const DonatePanel = ({
   title,
   kind,
   links,
+  showCustomAmount,
 }: {
   title: string;
   kind: DonateKind;
   links: NonNullable<ReturnType<typeof buildDonateLinks>>;
+  showCustomAmount: boolean;
 }) => {
   const openCheckout = (tier: DonateTier, label: string) => {
     const url = getDonateCheckoutUrl(links, kind, tier);
@@ -50,12 +52,14 @@ const DonatePanel = ({
             onClick={() => openCheckout(tier, label)}
           />
         ))}
-        <div className="donate-modal__custom">
-          <DialogActionButton
-            label="Your amount"
-            onClick={() => openCheckout("custom", "custom")}
-          />
-        </div>
+        {showCustomAmount && (
+          <div className="donate-modal__custom">
+            <DialogActionButton
+              label="Your amount"
+              onClick={() => openCheckout("custom", "custom")}
+            />
+          </div>
+        )}
       </div>
     </section>
   );
@@ -81,11 +85,17 @@ export const DonateModal = ({ isOpen, onClose }: Props) => {
         your card number.
       </p>
       <div className="donate-modal__columns">
-        <DonatePanel title="One-time donation" kind="once" links={links} />
+        <DonatePanel
+          title="One-time donation"
+          kind="once"
+          links={links}
+          showCustomAmount
+        />
         <DonatePanel
           title="Monthly recurring donation"
           kind="monthly"
           links={links}
+          showCustomAmount={false}
         />
       </div>
     </Dialog>
