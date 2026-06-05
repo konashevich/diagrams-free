@@ -10,6 +10,7 @@ import {
   findManifestFileId,
   readDriveManifest,
   uploadVaultSceneFile,
+  withDriveFolderRetry,
   writeDriveManifest,
   downloadFileText,
 } from "./api";
@@ -31,15 +32,20 @@ export class DriveSyncService {
   async backupVaultToDrive(): Promise<DriveSyncResult> {
     this.assertReady();
 
+    return withDriveFolderRetry(() => this.backupVaultToDriveInner());
+  }
+
+  private async backupVaultToDriveInner(): Promise<DriveSyncResult> {
     const folders = await ensureDriveFolderStructure();
     const scenes = await sceneVaultStore.listScenes();
     const existingManifest =
       (await readDriveManifest(folders.vaultId)) ?? createEmptyManifest();
     const manifestFileId = await findManifestFileId(folders.vaultId);
 
-    const manifestById = new Map(
+    const existingById = new Map(
       existingManifest.scenes.map((entry) => [entry.id, entry]),
     );
+    const manifestById = new Map<string, (typeof existingManifest.scenes)[0]>();
 
     for (const meta of scenes) {
       const scene = await sceneVaultStore.getScene(meta.id);
@@ -47,7 +53,7 @@ export class DriveSyncService {
         continue;
       }
       const content = serializeVaultSceneForDownload(scene);
-      const previous = manifestById.get(meta.id);
+      const previous = existingById.get(meta.id);
       const driveFileId = await uploadVaultSceneFile({
         scenesFolderId: folders.scenesId,
         sceneId: meta.id,
@@ -86,6 +92,10 @@ export class DriveSyncService {
   async restoreVaultFromDrive(): Promise<DriveSyncResult> {
     this.assertReady();
 
+    return withDriveFolderRetry(() => this.restoreVaultFromDriveInner());
+  }
+
+  private async restoreVaultFromDriveInner(): Promise<DriveSyncResult> {
     const folders = await ensureDriveFolderStructure();
     const manifest = await readDriveManifest(folders.vaultId);
     if (!manifest?.scenes.length) {

@@ -31,7 +31,8 @@ export const isOfficialLibraryEnabled = (): boolean =>
 
 export const isGoogleDriveShareEnabled = (): boolean =>
   import.meta.env.VITE_APP_GOOGLE_DRIVE === "true" &&
-  !!import.meta.env.VITE_APP_GOOGLE_CLIENT_ID?.trim();
+  !!import.meta.env.VITE_APP_GOOGLE_CLIENT_ID?.trim() &&
+  !!import.meta.env.VITE_APP_GOOGLE_API_KEY?.trim();
 
 export const CONTACT_FORM_URL =
   import.meta.env.VITE_APP_CONTACT_FORM_URL?.trim() ?? "";

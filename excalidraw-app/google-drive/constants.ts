@@ -25,6 +25,8 @@ export const DRIVE_TOKEN_EXPIRY_STORAGE_KEY =
 /** Default on when signed in; user can disable in vault panel. */
 export const DRIVE_AUTO_SYNC_STORAGE_KEY = "diagrams-free:drive-auto-sync";
 
+export const DRIVE_LAST_SYNC_STORAGE_KEY = "diagrams-free:drive-last-sync-at";
+
 export const getDriveRootFolderName = (): string =>
   import.meta.env.VITE_APP_GOOGLE_DRIVE_FOLDER?.trim() ||
   DEFAULT_DRIVE_ROOT_FOLDER;
@@ -50,4 +52,20 @@ export const setDriveAutoSyncEnabled = (enabled: boolean): void => {
     DRIVE_AUTO_SYNC_STORAGE_KEY,
     enabled ? "true" : "false",
   );
+};
+
+export const getDriveLastSyncAt = (): number | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const raw = localStorage.getItem(DRIVE_LAST_SYNC_STORAGE_KEY);
+  if (!raw) {
+    return null;
+  }
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+};
+
+export const setDriveLastSyncAt = (timestamp: number): void => {
+  localStorage.setItem(DRIVE_LAST_SYNC_STORAGE_KEY, String(timestamp));
 };

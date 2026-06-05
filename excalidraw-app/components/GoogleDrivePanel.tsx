@@ -7,12 +7,16 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { flushVaultSync } from "../scene-vault/vaultSync";
 
 import {
+  DriveApiError,
   driveSyncService,
+  getDriveLastSyncAt,
   getGoogleAccountEmail,
+  handleDriveAuthFailure,
   isDriveAutoSyncEnabled,
   isGoogleDriveEnabled,
   isSignedInToGoogle,
   setDriveAutoSyncEnabled,
+  setDriveLastSyncAt,
   signInWithGoogle,
   signOutFromGoogle,
 } from "../google-drive";
@@ -43,7 +47,9 @@ export const GoogleDrivePanel = ({
   const [email, setEmail] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
+  const [lastSyncAt, setLastSyncAt] = useState<number | null>(() =>
+    getDriveLastSyncAt(),
+  );
   const [autoSync, setAutoSync] = useState(isDriveAutoSyncEnabled());
 
   const refreshAccount = useCallback(async () => {
@@ -71,10 +77,20 @@ export const GoogleDrivePanel = ({
     try {
       const result = await action();
       setLastSyncAt(result.syncedAt);
+      setDriveLastSyncAt(result.syncedAt);
       onSyncComplete();
     } catch (err) {
       console.error("[google-drive]", err);
-      setError(err instanceof Error ? err.message : "Google Drive sync failed.");
+      if (err instanceof DriveApiError && err.status === 401) {
+        handleDriveAuthFailure();
+        setSignedIn(false);
+        setEmail(null);
+        setError("Google sign-in expired. Please sign in again.");
+      } else {
+        setError(
+          err instanceof Error ? err.message : "Google Drive sync failed.",
+        );
+      }
     } finally {
       setBusy(false);
     }
@@ -104,7 +120,7 @@ export const GoogleDrivePanel = ({
 
   const handleBackup = () => {
     void run(async () => {
-      await flushVaultSync(excalidrawAPI);
+      await flushVaultSync(excalidrawAPI, { skipDrive: true });
       return driveSyncService.backupVaultToDrive();
     });
   };

@@ -1,5 +1,6 @@
 import {
   DRIVE_FILE_SCOPE,
+  DRIVE_FOLDER_CACHE_KEY,
   DRIVE_TOKEN_EXPIRY_STORAGE_KEY,
   DRIVE_TOKEN_STORAGE_KEY,
   GIS_SCRIPT_URL,
@@ -150,5 +151,10 @@ export const signOutFromGoogle = (): void => {
     window.google.accounts.oauth2.revoke(token, () => {});
   }
   clearStoredSession();
-  sessionStorage.removeItem("diagrams-free:drive-folder-ids");
+  sessionStorage.removeItem(DRIVE_FOLDER_CACHE_KEY);
+};
+
+/** Clear session after expired or revoked token (401 from Drive API). */
+export const handleDriveAuthFailure = (): void => {
+  signOutFromGoogle();
 };

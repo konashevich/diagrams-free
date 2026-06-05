@@ -1,12 +1,14 @@
 export {
   DEFAULT_DRIVE_ROOT_FOLDER,
   DRIVE_FILE_SCOPE,
+  getDriveLastSyncAt,
   getDriveRootFolderName,
   getGoogleApiKey,
   getGoogleClientId,
   isDriveAutoSyncEnabled,
   isGoogleDriveEnabled,
   setDriveAutoSyncEnabled,
+  setDriveLastSyncAt,
 } from "./constants";
 
 export type {
@@ -32,14 +34,17 @@ export {
 export {
   getAccessToken,
   getGoogleAccountEmail,
+  handleDriveAuthFailure,
   isSignedInToGoogle,
   signInWithGoogle,
   signOutFromGoogle,
 } from "./auth";
 
 export {
+  clearDriveFolderCache,
   ensureDriveFolderStructure,
   readDriveManifest,
+  withDriveFolderRetry,
   writeDriveManifest,
 } from "./api";
 
@@ -65,6 +70,6 @@ export {
 } from "./shareLink";
 
 export {
-  scheduleDriveVaultSync,
   flushDriveVaultSync,
+  scheduleDriveVaultSync,
 } from "./driveVaultSync";

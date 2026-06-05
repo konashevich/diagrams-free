@@ -8,7 +8,7 @@ import {
   getGoogleApiKey,
 } from "./constants";
 import { DriveApiError } from "./errors";
-import { getAccessToken } from "./auth";
+import { getAccessToken, handleDriveAuthFailure } from "./auth";
 import {
   DRIVE_MANIFEST_FILENAME,
   DRIVE_SCENES_FOLDER,
@@ -35,6 +35,10 @@ const readFolderCache = (): DriveFolderIds | null => {
 
 const writeFolderCache = (ids: DriveFolderIds): void => {
   sessionStorage.setItem(DRIVE_FOLDER_CACHE_KEY, JSON.stringify(ids));
+};
+
+export const clearDriveFolderCache = (): void => {
+  sessionStorage.removeItem(DRIVE_FOLDER_CACHE_KEY);
 };
 
 const driveFetch = async (
@@ -64,6 +68,12 @@ const driveFetch = async (
       }
     } catch {
       // ignore parse errors
+    }
+    if (response.status === 401) {
+      handleDriveAuthFailure();
+    }
+    if (response.status === 404 && readFolderCache()) {
+      clearDriveFolderCache();
     }
     throw new DriveApiError(message, response.status);
   }
@@ -127,12 +137,7 @@ const ensureRootFolder = async (): Promise<string> => {
   return createFolder(rootName, "root");
 };
 
-export const ensureDriveFolderStructure = async (): Promise<DriveFolderIds> => {
-  const cached = readFolderCache();
-  if (cached) {
-    return cached;
-  }
-
+const buildDriveFolderStructure = async (): Promise<DriveFolderIds> => {
   const rootId = await ensureRootFolder();
   const vaultId = await ensureChildFolder(rootId, DRIVE_VAULT_FOLDER);
   const scenesId = await ensureChildFolder(vaultId, DRIVE_SCENES_FOLDER);
@@ -141,6 +146,29 @@ export const ensureDriveFolderStructure = async (): Promise<DriveFolderIds> => {
   const ids: DriveFolderIds = { rootId, vaultId, scenesId, sharedId };
   writeFolderCache(ids);
   return ids;
+};
+
+export const ensureDriveFolderStructure = async (): Promise<DriveFolderIds> => {
+  const cached = readFolderCache();
+  if (cached) {
+    return cached;
+  }
+  return buildDriveFolderStructure();
+};
+
+/** Retry once after clearing stale folder cache (404 from Drive API). */
+export const withDriveFolderRetry = async <T>(
+  fn: () => Promise<T>,
+): Promise<T> => {
+  try {
+    return await fn();
+  } catch (error) {
+    if (error instanceof DriveApiError && error.status === 404) {
+      clearDriveFolderCache();
+      return fn();
+    }
+    throw error;
+  }
 };
 
 const findFileInParent = async (
@@ -198,6 +226,9 @@ export const uploadTextFile = async (options: {
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      handleDriveAuthFailure();
+    }
     throw new DriveApiError(
       `Upload failed (${response.status})`,
       response.status,
@@ -226,7 +257,18 @@ export const readDriveManifest = async (
     return null;
   }
   const text = await downloadFileText(manifestFileId);
-  return JSON.parse(text) as DriveManifest;
+  try {
+    const manifest = JSON.parse(text) as DriveManifest;
+    if (
+      typeof manifest.version !== "number" ||
+      !Array.isArray(manifest.scenes)
+    ) {
+      return null;
+    }
+    return manifest;
+  } catch {
+    return null;
+  }
 };
 
 export const writeDriveManifest = async (

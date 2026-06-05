@@ -12,6 +12,7 @@ import {
   ensureDriveFolderStructure,
   setFilePermissionAnyoneReader,
   uploadTextFile,
+  withDriveFolderRetry,
 } from "./api";
 import { getAccessToken, isSignedInToGoogle } from "./auth";
 import { DriveAuthError } from "./errors";
@@ -51,17 +52,19 @@ export class DriveShareService {
       throw new Error("Cannot share an empty canvas.");
     }
 
-    const folders = await ensureDriveFolderStructure();
-    const fileId = await uploadTextFile({
-      parentId: folders.sharedId,
-      name: shareFilename(),
-      content,
-      mimeType: MIME_TYPES.excalidraw,
+    return withDriveFolderRetry(async () => {
+      const folders = await ensureDriveFolderStructure();
+      const fileId = await uploadTextFile({
+        parentId: folders.sharedId,
+        name: shareFilename(),
+        content,
+        mimeType: MIME_TYPES.excalidraw,
+      });
+
+      await setFilePermissionAnyoneReader(fileId);
+
+      return { url: buildShareUrl(fileId), fileId };
     });
-
-    await setFilePermissionAnyoneReader(fileId);
-
-    return { url: buildShareUrl(fileId), fileId };
   }
 
   async loadSharedScene(fileId: string): Promise<ImportedDataState> {
