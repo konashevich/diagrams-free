@@ -2,7 +2,7 @@
 
 Guidance for AI agents working on **diagrams.free** — a fork of [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT). Live site: **[https://diagrams.free](https://diagrams.free)**. Repo: [konashevich/diagrams-free](https://github.com/konashevich/diagrams-free).
 
-This is **not** the official Excalidraw product. The app has been fully rebranded to **diagrams.free** (see [docs/diagrams-free-branding-and-ip-clearance.md](docs/diagrams-free-branding-and-ip-clearance.md)): new logo/favicon/OG assets, **Indie Flower** (Google Font, OFL) as the default hand-drawn font, and removal of Excalidraw trademarks and official cloud backends from production builds.
+This is **not** the official Excalidraw product. The app has been fully rebranded to **diagrams.free** (see [docs/diagrams-free-branding-and-ip-clearance.md](docs/diagrams-free-branding-and-ip-clearance.md)): new logo/favicon/OG assets, **Nanum Pen Script** (Google Font, OFL) as the default hand-drawn font, and removal of Excalidraw trademarks and official cloud backends from production builds.
 
 ---
 

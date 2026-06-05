@@ -33,7 +33,9 @@ export const AppMainMenu: React.FC<{
           <MainMenu.Item onSelect={props.onOpenSceneVault}>
             My scenes
           </MainMenu.Item>
-          <MainMenu.Item onSelect={props.onNewCanvas}>New canvas</MainMenu.Item>
+          <MainMenu.Item onSelect={props.onNewCanvas}>
+            New canvas (save and reset)
+          </MainMenu.Item>
         </>
       )}
       {props.isCollabEnabled && (

@@ -33,11 +33,11 @@ export interface FontMetadata {
 }
 
 export const FONT_METADATA: Record<number, FontMetadata> = {
-  [FONT_FAMILY["Indie Flower"]]: {
+  [FONT_FAMILY["Nanum Pen Script"]]: {
     metrics: {
-      unitsPerEm: 1024,
-      ascender: 994,
-      descender: -500,
+      unitsPerEm: 1000,
+      ascender: 800,
+      descender: -200,
       lineHeight: 1.25,
     },
   },

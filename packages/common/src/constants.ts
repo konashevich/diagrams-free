@@ -132,7 +132,7 @@ export const FONT_FAMILY = {
   Helvetica: 2,
   Cascadia: 3,
   // historically unused; now diagrams.free default hand-drawn font
-  "Indie Flower": 4,
+  "Nanum Pen Script": 4,
   Excalifont: 5,
   Nunito: 6,
   "Lilita One": 7,
@@ -177,7 +177,7 @@ export const getFontFamilyFallbacks = (
 
   switch (fontFamily) {
     case FONT_FAMILY.Excalifont:
-    case FONT_FAMILY["Indie Flower"]:
+    case FONT_FAMILY["Nanum Pen Script"]:
       return [
         CJK_HAND_DRAWN_FALLBACK_FONT,
         genericFallbackFont,
@@ -214,7 +214,7 @@ export const FRAME_STYLE = {
 export const MIN_FONT_SIZE = 1;
 export const DEFAULT_FONT_SIZE = 20;
 export const DEFAULT_FONT_FAMILY: FontFamilyValues =
-  FONT_FAMILY["Indie Flower"];
+  FONT_FAMILY["Nanum Pen Script"];
 export const DEFAULT_TEXT_ALIGN = "left";
 export const DEFAULT_VERTICAL_ALIGN = "top";
 export const DEFAULT_VERSION = "{version}";

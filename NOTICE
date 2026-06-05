@@ -17,7 +17,7 @@ The editor ships several web fonts. Primary hand-drawn fonts used by diagrams.fr
 
 | Font | Copyright | License |
 |------|-----------|---------|
-| **Indie Flower** | Copyright (c) 2010 Kimberly Geswein | [SIL Open Font License 1.1](https://openfontlicense.org) |
+| **Nanum Pen Script** | Copyright (c) 2010 NHN Corporation | [SIL Open Font License 1.1](https://openfontlicense.org) |
 | **Excalifont** | Copyright (c) 2024 Excalidraw; modifications by DizajnDesign | [SIL Open Font License 1.1](https://scripts.sil.org/OFL) |
 
 Other fonts bundled from upstream Excalidraw (Virgil, Cascadia, Assistant, and others) retain
