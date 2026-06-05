@@ -31,7 +31,10 @@ export const AppMainMenu: React.FC<{
       <MainMenu.DefaultItems.SaveAsImage />
       {props.sceneVaultEnabled && (
         <>
-          <MainMenu.Item onSelect={props.onOpenSceneVault}>
+          <MainMenu.Item
+            onSelect={props.onOpenSceneVault}
+            title="Browse and open saved scenes"
+          >
             My scenes
           </MainMenu.Item>
           <MainMenu.Item
