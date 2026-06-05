@@ -27,6 +27,7 @@ export const AppMainMenu: React.FC<{
   refresh: () => void;
   sceneVaultEnabled?: boolean;
   onOpenSceneVault?: () => void;
+  onSaveToBrowser?: () => void;
   onNewCanvas?: () => void;
   onResetCanvas?: () => void;
   onOpenDonate?: () => void;
@@ -44,6 +45,12 @@ export const AppMainMenu: React.FC<{
             title="Browse and open saved scenes"
           >
             My scenes
+          </MainMenu.Item>
+          <MainMenu.Item
+            onSelect={props.onSaveToBrowser}
+            title="Save the current scene to browser storage and keep it open."
+          >
+            Save to browser
           </MainMenu.Item>
           <MainMenu.Item
             onSelect={props.onNewCanvas}

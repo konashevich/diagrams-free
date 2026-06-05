@@ -1168,6 +1168,15 @@ const ExcalidrawWrapper = () => {
           refresh={() => forceRefresh((prev) => !prev)}
           sceneVaultEnabled={sceneVaultEnabled}
           onOpenSceneVault={() => setSceneVaultDialogOpen(true)}
+          onSaveToBrowser={() => {
+            if (excalidrawAPI) {
+              void sceneVaultService
+                .archiveCurrentScene(excalidrawAPI)
+                .then(() => {
+                  refreshActiveVaultSceneId();
+                });
+            }
+          }}
           onNewCanvas={() => {
             if (excalidrawAPI) {
               void sceneVaultService

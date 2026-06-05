@@ -32,6 +32,7 @@
     }
 
     &__textarea-label {
+      font-family: var(--ui-font);
       font-size: 0.75rem;
       font-weight: 500;
       color: var(--ExcTextField--label-color, var(--text-primary-color));
