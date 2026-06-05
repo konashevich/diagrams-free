@@ -10,6 +10,8 @@ function doGet() {
 
 var SUPPORT_EMAIL = "support@diagrams.free";
 var FALLBACK_EMAIL = "konashevich@gmail.com";
+/** Inbox that receives support@ (Cloudflare routing). Skip duplicate confirmation here. */
+var OWNER_INBOX = FALLBACK_EMAIL;
 var FROM_NAME = "diagrams.free";
 
 var LIMITS = {
@@ -81,12 +83,14 @@ function doPost(e) {
       "\" and will reply to this email address when we can.\n\n" +
       "— diagrams.free support";
 
-    try {
-      GmailApp.sendEmail(email, confirmSubject, confirmBody, {
-        name: FROM_NAME,
-      });
-    } catch (confirmError) {
-      console.warn("Confirmation email failed: " + confirmError);
+    if (!isOwnerInbox(email)) {
+      try {
+        GmailApp.sendEmail(email, confirmSubject, confirmBody, {
+          name: FROM_NAME,
+        });
+      } catch (confirmError) {
+        console.warn("Confirmation email failed: " + confirmError);
+      }
     }
 
     return jsonResponse({ ok: true });
@@ -188,6 +192,14 @@ function isRateLimited(email) {
 function recordSubmission(email) {
   var key = "contact:" + email.toLowerCase();
   CacheService.getScriptCache().put(key, "1", 300);
+}
+
+/**
+ * @param {string} address
+ * @returns {boolean}
+ */
+function isOwnerInbox(address) {
+  return trim(address).toLowerCase() === OWNER_INBOX.toLowerCase();
 }
 
 /**
