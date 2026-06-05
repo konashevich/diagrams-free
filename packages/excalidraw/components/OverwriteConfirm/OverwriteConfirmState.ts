@@ -9,6 +9,7 @@ export type OverwriteConfirmState =
       description: React.ReactNode;
       actionLabel: string;
       color: "danger" | "warning";
+      showSaveToBrowser?: boolean;
 
       onClose: () => void;
       onConfirm: () => void;
@@ -25,11 +26,13 @@ export async function openConfirmModal({
   description,
   actionLabel,
   color,
+  showSaveToBrowser,
 }: {
   title: string;
   description: React.ReactNode;
   actionLabel: string;
   color: "danger" | "warning";
+  showSaveToBrowser?: boolean;
 }) {
   return new Promise<boolean>((resolve) => {
     editorJotaiStore.set(overwriteConfirmStateAtom, {
@@ -41,6 +44,7 @@ export async function openConfirmModal({
       description,
       actionLabel,
       color,
+      showSaveToBrowser,
     });
   });
 }

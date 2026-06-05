@@ -16,6 +16,7 @@ Stock Excalidraw keeps one implicit “current scene” in the browser; reset/ne
 - **Google Drive sync & share** (in progress, early stage) — planned backup/restore of the vault and share links via the user’s Drive; see plan below.
 - **GitHub Pages hosting** on custom domain **diagrams.free** — static SPA, no app server. See [docs/github-pages-hosting.md](docs/github-pages-hosting.md).
 - **Shape libraries** — browse/install still points at Excalidraw’s public catalog (`libraries.excalidraw.com`); personal libraries stay in the browser. A self-hosted or independent catalog may come later. See [docs/libraries-overview.md](docs/libraries-overview.md).
+- **Google Analytics 4** — production visit statistics via GA4 measurement ID **`G-H31J97S7ZC`** (not diagram content). See [Google Analytics 4](#google-analytics-4-production) below.
 - **Default hand-drawn font** — **Nanum Pen Script** (Google Font, SIL OFL), self-hosted as woff2; replaces upstream Excalifont/Virgil as the canvas default. Excalifont remains in the font picker.
 
 Full user-facing summary: [README.md](README.md).
@@ -111,12 +112,36 @@ Implement remaining work per plan §9 (terminal `gcloud` + browser for Console).
 
 ---
 
+## Google Analytics 4 (production)
+
+**Service:** [Google Analytics 4](https://analytics.google.com/) (visit statistics only — not diagram content).
+
+**Measurement ID:** `G-H31J97S7ZC`
+
+| Item | Location / value |
+|------|------------------|
+| Enable flag | `VITE_APP_ENABLE_TRACKING=true` in `.env.production` |
+| Measurement ID env | `VITE_APP_GA_MEASUREMENT_ID=G-H31J97S7ZC` in `.env.production` |
+| gtag snippet | `excalidraw-app/index.html` (injected at build time via EJS; **production only**) |
+| EJS data | `excalidraw-app/vite.config.mts` → `ViteEjsPlugin` |
+| Custom events | `packages/excalidraw/analytics.ts` → `trackEvent()` → `window.gtag` (limited categories; no canvas/vault payloads) |
+| Privacy policy | [public/privacy/index.html](public/privacy/index.html) → https://diagrams.free/privacy/ |
+
+**Agent notes:**
+
+- The gtag script does **not** load in local dev (`yarn start`) — only when `mode === "production"` and both env vars are set.
+- Do not add diagram, vault, or file contents to analytics events.
+- To disable analytics in a build, set `VITE_APP_ENABLE_TRACKING=false` or clear `VITE_APP_GA_MEASUREMENT_ID`.
+- Upstream `trackEvent` / SimpleAnalytics (`sa_event`) remain as a fallback in `analytics.ts` but are unused in production.
+
+---
+
 ## Hosting & deployment
 
 - **URL:** https://diagrams.free  
 - **Deploy:** push to `master` → GitHub Actions → build → GitHub Pages ([`.github/workflows/deploy-github-pages.yml`](.github/workflows/deploy-github-pages.yml))  
 - **Vite `base`:** `/` (custom apex domain)  
-- **Production env:** `.env.production` — scene vault on, official Excalidraw backends empty, GA4 when `VITE_APP_ENABLE_TRACKING=true`, diagrams.free branding  
+- **Production env:** `.env.production` — scene vault on, official Excalidraw backends empty, GA4 (`G-H31J97S7ZC`) when tracking enabled, diagrams.free branding  
 
 Details: [docs/github-pages-hosting.md](docs/github-pages-hosting.md).
 
@@ -163,6 +188,7 @@ If `yarn install` fails with `ENOSPC`, set `TMPDIR` and `YARN_CACHE_FOLDER` to a
 | Google Drive sync/share plan | [docs/google-drive-sync-and-share-plan.md](docs/google-drive-sync-and-share-plan.md) |
 | GitHub Pages / domain | [docs/github-pages-hosting.md](docs/github-pages-hosting.md) |
 | Branding & IP clearance | [docs/diagrams-free-branding-and-ip-clearance.md](docs/diagrams-free-branding-and-ip-clearance.md) |
+| Privacy policy (GA4, Drive, local data) | [public/privacy/index.html](public/privacy/index.html) |
 | Shape libraries | [docs/libraries-overview.md](docs/libraries-overview.md) |
 | Upstream editor development | [docs.excalidraw.com](https://docs.excalidraw.com/docs/introduction/development) |
 

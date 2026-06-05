@@ -96,6 +96,7 @@ import Collab, {
 import { AppFooter } from "./components/AppFooter";
 import { AppMainMenu } from "./components/AppMainMenu";
 import { AppWelcomeScreen } from "./components/AppWelcomeScreen";
+import { SaveToBrowserOverwriteAction } from "./components/SaveToBrowserOverwriteAction";
 import { TopErrorBoundary } from "./components/TopErrorBoundary";
 
 import {
@@ -1117,6 +1118,7 @@ const ExcalidrawWrapper = () => {
                 "This will permanently delete the current scene and clear the canvas. This cannot be undone.",
               actionLabel: "Delete",
               color: "danger",
+              showSaveToBrowser: true,
             }).then((confirmed) => {
               if (confirmed) {
                 void sceneVaultService
@@ -1136,6 +1138,9 @@ const ExcalidrawWrapper = () => {
         />
         <OverwriteConfirmDialog>
           <OverwriteConfirmDialog.Actions.ExportToImage />
+          <SaveToBrowserOverwriteAction
+            onSaved={refreshActiveVaultSceneId}
+          />
           <OverwriteConfirmDialog.Actions.SaveToDisk />
         </OverwriteConfirmDialog>
         <AppFooter onChange={() => excalidrawAPI?.refresh()} />

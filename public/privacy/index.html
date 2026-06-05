@@ -19,41 +19,170 @@
       h1 {
         font-size: 1.75rem;
       }
+      h2 {
+        font-size: 1.15rem;
+        margin-top: 1.5rem;
+      }
+      ul {
+        padding-left: 1.25rem;
+      }
     </style>
   </head>
   <body>
     <h1>Privacy policy</h1>
     <p><strong>diagrams.free</strong> (<a href="https://diagrams.free">https://diagrams.free</a>)</p>
-    <p>Last updated: June 2026</p>
+    <p>Last updated: 5 June 2026</p>
+
+    <p><em>Plain-language summary, not legal advice.</em></p>
 
     <h2>Summary</h2>
     <p>
-      diagrams.free runs entirely in your browser. Your drawings are stored locally on your
-      device unless you explicitly export or sync them using a feature you choose.
+      diagrams.free is a free drawing app that runs in your browser. Your diagrams are stored on
+      your device by default. We do not run application servers that receive or store your canvas
+      data — the site is static files on GitHub Pages. We use Google Analytics 4 for basic visit
+      statistics. Optional Google sign-in is only for features you turn on (such as Drive backup).
     </p>
 
-    <h2>Local storage</h2>
+    <h2>Who operates this site</h2>
     <p>
-      The editor saves your active canvas and preferences in browser storage (localStorage and
-      IndexedDB). This data stays on your device and is not sent to diagrams.free servers
-      because there are no application servers — the site is static hosting.
+      diagrams.free is maintained independently of excalidraw.com and Excalidraw+. For privacy
+      questions or requests, contact
+      <a href="mailto:support@diagrams.free">support@diagrams.free</a>.
     </p>
 
-    <h2>Google sign-in and Drive (when enabled)</h2>
+    <h2>Data stored on your device</h2>
+    <p>When you use diagrams.free, the following may be stored locally in your browser:</p>
+    <ul>
+      <li>
+        <strong>Active canvas</strong> — your current drawing, app preferences, and embedded images
+        (browser localStorage and IndexedDB).
+      </li>
+      <li>
+        <strong>My scenes (scene vault)</strong> — named snapshots you save in the vault (separate
+        IndexedDB database on your device).
+      </li>
+      <li>
+        <strong>Shape libraries</strong> — libraries you install for offline use.
+      </li>
+    </ul>
     <p>
-      If you connect Google Drive, OAuth and file access are handled by Google under Google's
-      privacy policy. diagrams.free only requests access needed to read and write files in your
-      Drive that the app creates (for example under a <code>diagrams.free/</code> folder).
+      This data stays on your device unless you export a <code>.excalidraw</code> file, copy a
+      share link, or use an optional sync feature. Clearing site data in your browser removes local
+      storage for diagrams.free.
     </p>
 
-    <h2>Analytics</h2>
+    <h2>What we do not collect on our servers</h2>
     <p>
-      diagrams.free uses
-      <a href="https://analytics.google.com/">Google Analytics 4</a> to collect
-      anonymous usage statistics (for example page views and coarse location).
-      Google may use cookies; see
-      <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a>.
-      Drawings and vault data are not sent to Google Analytics.
+      Because there is no diagrams.free backend for drawings, we do not receive your canvas
+      content, vault contents, or exports unless you deliberately send them somewhere else (for
+      example by uploading to your own Google Drive or emailing a file).
+    </p>
+
+    <h2>Google Analytics 4</h2>
+    <p>
+      We use
+      <a href="https://analytics.google.com/">Google Analytics 4</a> (Google LLC) to understand
+      how the site is used — for example page views, approximate location (country/region), device
+      type, and referral source. Google may set cookies or use similar technologies. Analytics data
+      is processed by Google under the
+      <a href="https://policies.google.com/privacy">Google Privacy Policy</a>.
+    </p>
+    <p>
+      <strong>Your drawings are not sent to Google Analytics.</strong> Custom events in the app are
+      limited to coarse product actions (for example export-related events), not diagram content.
+    </p>
+    <p>
+      You can limit analytics collection by using browser privacy settings, blocking scripts from
+      <code>googletagmanager.com</code> / <code>google-analytics.com</code>, or installing
+      <a href="https://tools.google.com/dlpage/gaoptout">Google&rsquo;s Analytics opt-out add-on</a>
+      (where available for your browser).
+    </p>
+
+    <h2>Google sign-in and Drive (optional)</h2>
+    <p>
+      If you choose to connect Google Drive, sign-in and file access are handled by Google under
+      <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a>. diagrams.free
+      requests only the access needed to work with files the app creates or opens for you, such as
+      backup and restore under a <code>diagrams.free/</code> folder on your Drive.
+    </p>
+    <p>Typical OAuth scopes include:</p>
+    <ul>
+      <li>
+        <code>https://www.googleapis.com/auth/drive.file</code> — access to files created or opened
+        by the app
+      </li>
+      <li>
+        <code>openid</code>, <code>email</code>, <code>profile</code> — basic account info if shown
+        in the UI
+      </li>
+    </ul>
+    <p>
+      You can revoke access anytime in your
+      <a href="https://myaccount.google.com/permissions">Google Account permissions</a>. Files on
+      Drive remain under your Google account and sharing settings.
+    </p>
+
+    <h2>Share links</h2>
+    <p>
+      If you use a share feature that uploads a scene to Google Drive, anyone with the link you
+      distribute may be able to open that file according to the sharing settings you set in Google
+      Drive. diagrams.free does not host shared diagram files on its own servers.
+    </p>
+
+    <h2>Other third-party services</h2>
+    <p>Loading diagrams.free may contact other providers, for example:</p>
+    <ul>
+      <li>
+        <strong>Google Fonts</strong> — web fonts (for example Nanum Pen Script) may be loaded from
+        Google&rsquo;s font CDN when you use the editor.
+      </li>
+      <li>
+        <strong>Shape library catalog</strong> — browsing or installing community libraries may
+        fetch metadata from <code>libraries.excalidraw.com</code> and library files from
+        <code>raw.githubusercontent.com</code> (Excalidraw&rsquo;s public library repository). Only
+        what you choose to install is stored locally.
+      </li>
+      <li>
+        <strong>GitHub Pages</strong> — hosts the static site files when you visit
+        <code>diagrams.free</code>.
+      </li>
+    </ul>
+    <p>Each third party has its own privacy practices.</p>
+
+    <h2>Cookies and similar technologies</h2>
+    <p>
+      diagrams.free itself does not set authentication cookies for a diagrams.free account (there is
+      no account). Google Analytics and Google sign-in may set cookies or use local storage as
+      described above when those features load.
+    </p>
+
+    <h2>Retention</h2>
+    <p>
+      Data on your device persists until you clear browser storage or uninstall site data.
+      Analytics retention is controlled by Google Analytics settings. Drive files follow
+      Google&rsquo;s retention until you delete them.
+    </p>
+
+    <h2>Your rights</h2>
+    <p>
+      Depending on where you live, you may have rights to access, correct, delete, or restrict
+      processing of personal data. For data held only on your device, you can clear site data in
+      your browser. For Google Analytics or Google Drive data, use Google&rsquo;s tools or contact
+      us at <a href="mailto:support@diagrams.free">support@diagrams.free</a> and we will help where
+      we can.
+    </p>
+
+    <h2>Children</h2>
+    <p>
+      diagrams.free is not directed at children under 13. We do not knowingly collect personal
+      information from children.
+    </p>
+
+    <h2>Changes to this policy</h2>
+    <p>
+      We may update this page from time to time. The &ldquo;Last updated&rdquo; date at the top will
+      change when we do. Continued use of the site after changes are posted means you accept the
+      updated policy.
     </p>
 
     <h2>Contact</h2>

@@ -1,4 +1,4 @@
-import { GithubIcon, eyeIcon } from "@excalidraw/excalidraw/components/icons";
+import { eyeIcon } from "@excalidraw/excalidraw/components/icons";
 import { MainMenu } from "@excalidraw/excalidraw/index";
 import React from "react";
 
@@ -7,7 +7,7 @@ import { isDevEnv } from "@excalidraw/common";
 import type { Theme } from "@excalidraw/element/types";
 
 import { LanguageList } from "../app-language/LanguageList";
-import { GITHUB_REPO, SITE_URL } from "../branding/constants";
+import { SITE_URL } from "../branding/constants";
 
 import { saveDebugState } from "./DebugCanvas";
 
@@ -34,7 +34,10 @@ export const AppMainMenu: React.FC<{
           <MainMenu.Item onSelect={props.onOpenSceneVault}>
             My scenes
           </MainMenu.Item>
-          <MainMenu.Item onSelect={props.onNewCanvas}>
+          <MainMenu.Item
+            onSelect={props.onNewCanvas}
+            title="Save and reset current scene"
+          >
             New canvas (save and reset)
           </MainMenu.Item>
           <MainMenu.Item
@@ -56,9 +59,6 @@ export const AppMainMenu: React.FC<{
       <MainMenu.DefaultItems.Help />
       {!props.sceneVaultEnabled && <MainMenu.DefaultItems.ClearCanvas />}
       <MainMenu.Separator />
-      <MainMenu.ItemLink icon={GithubIcon} href={GITHUB_REPO}>
-        GitHub
-      </MainMenu.ItemLink>
       <MainMenu.ItemLink href={`${SITE_URL}/about/`}>About</MainMenu.ItemLink>
       <MainMenu.ItemLink href={`${SITE_URL}/privacy/`}>
         Privacy
