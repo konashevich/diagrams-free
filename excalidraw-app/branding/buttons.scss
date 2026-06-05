@@ -17,6 +17,10 @@
     --button-bg: var(--color-surface-mid);
 
     @include df-toolbar-pale-tool-icons;
+
+    .ToolIcon.active .ToolIcon__icon {
+      @include df-brand-gradient-border-selected;
+    }
   }
 
   &.theme--dark {
@@ -30,6 +34,8 @@
 
   .compact-shape-actions-island,
   .compact-shape-actions {
+    --button-bg: var(--color-surface-mid);
+
     .compact-action-button {
       @include df-brand-gradient-border($fill: var(--color-surface-mid));
 
@@ -42,10 +48,26 @@
         @include df-brand-gradient-border-selected;
       }
     }
+
+    .compact-popover-content .buttonList {
+      @include df-button-list-pale-controls;
+    }
+
+    .ToolIcon .ToolIcon__icon {
+      @include df-pale-tool-icon;
+    }
+
+    .ToolIcon_type_radio:checked + .ToolIcon__icon,
+    .ToolIcon_type_checkbox:checked + .ToolIcon__icon {
+      @include df-brand-gradient-border-selected;
+    }
   }
 
   &.theme--dark .compact-shape-actions-island,
   &.theme--dark .compact-shape-actions {
+    --button-bg: var(--color-surface-high);
+    --button-hover-bg: #363541;
+
     .compact-action-button {
       @include df-brand-gradient-border($fill: var(--color-surface-high));
 
@@ -74,7 +96,8 @@
   }
 
   .help-icon,
-  .main-menu-trigger {
+  .main-menu-trigger,
+  .sidebar-trigger {
     @include df-brand-gradient-border($fill: var(--color-surface-low));
 
     &:hover {
@@ -84,5 +107,48 @@
     &:active {
       @include df-brand-gradient-border-active;
     }
+  }
+
+  .sidebar-trigger__label-element {
+    .ToolIcon_type_checkbox:checked + .sidebar-trigger {
+      @include df-brand-gradient-border-selected;
+    }
+  }
+
+  .App-toolbar__extra-tools-trigger {
+    @include df-brand-gradient-border($fill: var(--color-surface-mid));
+
+    &:hover {
+      @include df-brand-gradient-border-hover;
+    }
+
+    &:active {
+      @include df-brand-gradient-border-active;
+    }
+
+    &--selected,
+    &--selected:hover {
+      @include df-brand-gradient-border-selected;
+      color: var(--color-primary);
+    }
+  }
+
+  .mobile-misc-tools-container {
+    --button-bg: var(--color-surface-mid);
+
+    @include df-toolbar-pale-tool-icons;
+
+    .ToolIcon .ToolIcon__icon {
+      border-radius: 0;
+    }
+
+    .sidebar-trigger {
+      border-radius: 0;
+    }
+  }
+
+  &.theme--dark .mobile-misc-tools-container {
+    --button-bg: var(--color-surface-high);
+    --button-hover-bg: #363541;
   }
 }
