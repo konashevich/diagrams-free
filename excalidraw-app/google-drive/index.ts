@@ -32,9 +32,11 @@ export {
 } from "./paths";
 
 export {
+  ensureAccessToken,
   getAccessToken,
   getGoogleAccountEmail,
   handleDriveAuthFailure,
+  isGoogleDriveLinked,
   isSignedInToGoogle,
   signInWithGoogle,
   signOutFromGoogle,

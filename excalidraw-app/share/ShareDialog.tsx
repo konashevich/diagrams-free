@@ -21,7 +21,8 @@ import { useEffect, useRef, useState } from "react";
 import { atom, useAtom, useAtomValue } from "../app-jotai";
 import { activeRoomLinkAtom } from "../collab/Collab";
 import {
-  isSignedInToGoogle,
+  ensureAccessToken,
+  isGoogleDriveLinked,
   signInWithGoogle,
 } from "../google-drive";
 
@@ -201,8 +202,10 @@ const DriveShareSection = ({
     setBusy(true);
     setError("");
     try {
-      if (!isSignedInToGoogle()) {
+      if (!isGoogleDriveLinked()) {
         await signInWithGoogle();
+      } else {
+        await ensureAccessToken();
       }
       await onCreateDriveShareLink();
       handleClose();
@@ -222,7 +225,7 @@ const DriveShareSection = ({
       <div className="ShareDialog__picker__description">
         Creates an <strong>anyone with the link</strong> URL on{" "}
         <strong>diagrams.free</strong>. The file is stored in your Google Drive
-        under <code>diagrams.free/shared/</code>. To restrict access to specific
+        under <code>diagrams.free/</code>. To restrict access to specific
         people, change sharing on that file in{" "}
         <a
           href="https://drive.google.com"

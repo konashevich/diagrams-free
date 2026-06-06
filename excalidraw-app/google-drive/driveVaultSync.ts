@@ -6,14 +6,14 @@ import {
   setDriveLastSyncAt,
 } from "./constants";
 import { driveSyncService } from "./DriveSyncService";
-import { isSignedInToGoogle } from "./auth";
+import { isGoogleDriveLinked } from "./auth";
 
 const DRIVE_SYNC_DEBOUNCE_MS = 2500;
 
 const debouncedDriveBackup = debounce(() => {
   if (
     !isGoogleDriveEnabled() ||
-    !isSignedInToGoogle() ||
+    !isGoogleDriveLinked() ||
     !isDriveAutoSyncEnabled()
   ) {
     return;
@@ -37,7 +37,7 @@ export const flushDriveVaultSync = async (): Promise<void> => {
   debouncedDriveBackup.flush();
   if (
     !isGoogleDriveEnabled() ||
-    !isSignedInToGoogle() ||
+    !isGoogleDriveLinked() ||
     !isDriveAutoSyncEnabled()
   ) {
     return;

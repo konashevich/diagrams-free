@@ -9,6 +9,7 @@ import { flushVaultSync } from "../scene-vault/vaultSync";
 import {
   DriveApiError,
   driveSyncService,
+  ensureAccessToken,
   getDriveLastSyncAt,
   getGoogleAccountEmail,
   handleDriveAuthFailure,
@@ -59,8 +60,14 @@ export const GoogleDrivePanel = ({
       return;
     }
     setSignedIn(true);
-    const accountEmail = await getGoogleAccountEmail();
-    setEmail(accountEmail ?? null);
+    try {
+      await ensureAccessToken();
+      const accountEmail = await getGoogleAccountEmail();
+      setEmail(accountEmail ?? null);
+    } catch {
+      const accountEmail = await getGoogleAccountEmail();
+      setEmail(accountEmail ?? null);
+    }
   }, []);
 
   useEffect(() => {
@@ -83,9 +90,21 @@ export const GoogleDrivePanel = ({
       console.error("[google-drive]", err);
       if (err instanceof DriveApiError && err.status === 401) {
         handleDriveAuthFailure();
-        setSignedIn(false);
-        setEmail(null);
-        setError("Google sign-in expired. Please sign in again.");
+        try {
+          await ensureAccessToken();
+          const result = await action();
+          setLastSyncAt(result.syncedAt);
+          setDriveLastSyncAt(result.syncedAt);
+          onSyncComplete();
+          const accountEmail = await getGoogleAccountEmail();
+          setEmail(accountEmail ?? null);
+          return;
+        } catch (retryErr) {
+          console.error("[google-drive] retry after 401", retryErr);
+          setSignedIn(false);
+          setEmail(null);
+          setError("Google sign-in expired. Please sign in again.");
+        }
       } else {
         setError(
           err instanceof Error ? err.message : "Google Drive sync failed.",

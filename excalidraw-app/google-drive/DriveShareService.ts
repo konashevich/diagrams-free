@@ -14,7 +14,7 @@ import {
   uploadTextFile,
   withDriveFolderRetry,
 } from "./api";
-import { getAccessToken, isSignedInToGoogle } from "./auth";
+import { ensureAccessToken, getAccessToken, isGoogleDriveLinked } from "./auth";
 import { DriveAuthError } from "./errors";
 import { buildShareUrl } from "./shareLink";
 
@@ -30,8 +30,12 @@ const shareFilename = (): string =>
   `share-${Date.now()}.excalidraw`;
 
 export class DriveShareService {
-  assertReady(): void {
-    if (!isSignedInToGoogle() || !getAccessToken()) {
+  private async assertReady(): Promise<void> {
+    if (!isGoogleDriveLinked()) {
+      throw new DriveAuthError("Sign in with Google to share.");
+    }
+    await ensureAccessToken();
+    if (!getAccessToken()) {
       throw new DriveAuthError("Sign in with Google to share.");
     }
   }
@@ -44,7 +48,7 @@ export class DriveShareService {
   }
 
   async createShareLink(api: ExcalidrawImperativeAPI): Promise<DriveShareResult> {
-    this.assertReady();
+    await this.assertReady();
 
     const content = this.serializeScene(api);
     const parsed = JSON.parse(content) as { elements?: unknown[] };

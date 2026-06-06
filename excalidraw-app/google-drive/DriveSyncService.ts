@@ -16,23 +16,24 @@ import {
   writeDriveManifest,
   downloadFileText,
 } from "./api";
-import { getAccessToken, isSignedInToGoogle } from "./auth";
+import { getAccessToken, ensureAccessToken, isGoogleDriveLinked } from "./auth";
 import { DriveAuthError, DriveNotConfiguredError } from "./errors";
 
 import type { DriveManifest, DriveSyncResult } from "./types";
 
 export class DriveSyncService {
-  assertReady(): void {
-    if (!isSignedInToGoogle()) {
+  private async assertReady(): Promise<void> {
+    if (!isGoogleDriveLinked()) {
       throw new DriveAuthError("Sign in with Google first.");
     }
+    await ensureAccessToken();
     if (!getAccessToken()) {
       throw new DriveAuthError();
     }
   }
 
   async backupVaultToDrive(): Promise<DriveSyncResult> {
-    this.assertReady();
+    await this.assertReady();
 
     return withDriveFolderRetry(() => this.backupVaultToDriveInner());
   }
@@ -108,7 +109,7 @@ export class DriveSyncService {
   }
 
   async restoreVaultFromDrive(): Promise<DriveSyncResult> {
-    this.assertReady();
+    await this.assertReady();
 
     return withDriveFolderRetry(() => this.restoreVaultFromDriveInner());
   }

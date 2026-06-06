@@ -29,6 +29,12 @@ export const DRIVE_TOKEN_STORAGE_KEY = "diagrams-free:google-access-token";
 export const DRIVE_TOKEN_EXPIRY_STORAGE_KEY =
   "diagrams-free:google-access-token-expiry";
 
+/** Persists across browser sessions — user granted Drive access for this app. */
+export const DRIVE_LINKED_STORAGE_KEY = "diagrams-free:google-drive-linked";
+
+export const DRIVE_ACCOUNT_EMAIL_STORAGE_KEY =
+  "diagrams-free:google-account-email";
+
 /** Default on when signed in; user can disable in vault panel. */
 export const DRIVE_AUTO_SYNC_STORAGE_KEY = "diagrams-free:drive-auto-sync";
 
