@@ -79,6 +79,7 @@ export const LoadScene = () => {
         title: t("overwriteConfirm.modal.loadFromFile.title"),
         actionLabel: t("overwriteConfirm.modal.loadFromFile.button"),
         color: "warning",
+        proceedOnSaveToBrowser: true,
         description: (
           <Trans
             i18nKey="overwriteConfirm.modal.loadFromFile.description"

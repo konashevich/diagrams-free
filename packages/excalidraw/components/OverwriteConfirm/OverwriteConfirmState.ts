@@ -10,6 +10,8 @@ export type OverwriteConfirmState =
       actionLabel: string;
       color: "danger" | "warning";
       showSaveToBrowser?: boolean;
+      /** After vault backup, run the primary action (e.g. load shared link). */
+      proceedOnSaveToBrowser?: boolean;
 
       onClose: () => void;
       onConfirm: () => void;
@@ -27,12 +29,14 @@ export async function openConfirmModal({
   actionLabel,
   color,
   showSaveToBrowser,
+  proceedOnSaveToBrowser,
 }: {
   title: string;
   description: React.ReactNode;
   actionLabel: string;
   color: "danger" | "warning";
   showSaveToBrowser?: boolean;
+  proceedOnSaveToBrowser?: boolean;
 }) {
   return new Promise<boolean>((resolve) => {
     editorJotaiStore.set(overwriteConfirmStateAtom, {
@@ -45,6 +49,16 @@ export async function openConfirmModal({
       actionLabel,
       color,
       showSaveToBrowser,
+      proceedOnSaveToBrowser,
     });
   });
 }
+
+export const confirmOverwriteConfirmModal = (): void => {
+  const state = editorJotaiStore.get(overwriteConfirmStateAtom);
+  if (!state.active) {
+    return;
+  }
+  state.onConfirm();
+  editorJotaiStore.set(overwriteConfirmStateAtom, { active: false });
+};

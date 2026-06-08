@@ -1,5 +1,8 @@
 import { OverwriteConfirmDialog } from "@excalidraw/excalidraw/components/OverwriteConfirm/OverwriteConfirm";
-import { overwriteConfirmStateAtom } from "@excalidraw/excalidraw/components/OverwriteConfirm/OverwriteConfirmState";
+import {
+  confirmOverwriteConfirmModal,
+  overwriteConfirmStateAtom,
+} from "@excalidraw/excalidraw/components/OverwriteConfirm/OverwriteConfirmState";
 import { useAtomValue } from "@excalidraw/excalidraw/editor-jotai";
 import { useExcalidrawAPI } from "@excalidraw/excalidraw/index";
 import React from "react";
@@ -26,8 +29,12 @@ export const SaveToBrowserOverwriteAction: React.FC<{
       title="Save to Browser"
       actionLabel="Save to Browser"
       onClick={() => {
+        const proceedOnSave = overwriteConfirmState.proceedOnSaveToBrowser;
         void sceneVaultService.archiveCurrentScene(excalidrawAPI).then(() => {
           onSaved?.();
+          if (proceedOnSave) {
+            confirmOverwriteConfirmModal();
+          }
         });
       }}
     >

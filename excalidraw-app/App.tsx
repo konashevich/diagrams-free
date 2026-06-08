@@ -230,6 +230,7 @@ const shareableLinkConfirmDialog = {
   ),
   actionLabel: t("overwriteConfirm.modal.shareableLink.button"),
   color: "danger",
+  proceedOnSaveToBrowser: true,
 } as const;
 
 type InitializeSceneResult = { scene: ExcalidrawInitialDataState | null } & (
