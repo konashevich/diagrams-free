@@ -36,8 +36,11 @@ export {
   getAccessToken,
   getGoogleAccountEmail,
   handleDriveAuthFailure,
+  hasValidAccessToken,
+  hydrateDriveAuthSession,
   isGoogleDriveLinked,
   isSignedInToGoogle,
+  preloadGoogleDriveAuth,
   signInWithGoogle,
   signOutFromGoogle,
 } from "./auth";

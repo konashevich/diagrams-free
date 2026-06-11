@@ -1,0 +1,13 @@
+.donate-reminder-modal {
+  .donate-reminder-modal__body {
+    margin: 0 0 1.25rem;
+    line-height: 1.5;
+  }
+
+  .donate-reminder-modal__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
+}

@@ -10,6 +10,8 @@ import {
 import { DriveApiError } from "./errors";
 import { getAccessToken, handleDriveAuthFailure } from "./auth";
 import {
+  DONATE_REMINDER_STATE_FILENAME,
+  DRIVE_APP_FOLDER,
   DRIVE_MANIFEST_FILENAME,
   DRIVE_SCENES_FOLDER,
   DRIVE_VAULT_FOLDER,
@@ -349,6 +351,27 @@ export const findManifestFileId = async (
   vaultFolderId: string,
 ): Promise<string | null> =>
   findFileInParent(vaultFolderId, DRIVE_MANIFEST_FILENAME);
+
+export const ensureChildFolder = async (
+  parentId: string,
+  name: string,
+): Promise<string> => {
+  const existing = await findChildFolder(parentId, name);
+  if (existing) {
+    return existing;
+  }
+  return createFolder(name, parentId);
+};
+
+export const ensureDriveAppFolderId = async (): Promise<string> => {
+  const { rootId } = await ensureDriveFolderStructure();
+  return ensureChildFolder(rootId, DRIVE_APP_FOLDER);
+};
+
+export const findDonateReminderStateFileId = async (
+  appFolderId: string,
+): Promise<string | null> =>
+  findFileInParent(appFolderId, DONATE_REMINDER_STATE_FILENAME);
 
 export const downloadFileTextWithApiKey = async (
   fileId: string,

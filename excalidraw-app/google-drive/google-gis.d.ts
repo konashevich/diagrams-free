@@ -8,13 +8,17 @@ interface GoogleTokenResponse {
 }
 
 interface GoogleTokenClient {
-  requestAccessToken: (options?: { prompt?: string }) => void;
+  requestAccessToken: (options?: {
+    prompt?: string;
+    login_hint?: string;
+  }) => void;
 }
 
 interface GoogleAccountsOAuth2 {
   initTokenClient: (config: {
     client_id: string;
     scope: string;
+    login_hint?: string;
     callback: (response: GoogleTokenResponse) => void;
   }) => GoogleTokenClient;
   revoke: (token: string, callback: () => void) => void;

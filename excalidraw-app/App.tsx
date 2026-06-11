@@ -147,8 +147,19 @@ import {
 } from "./branding/constants";
 import { ContactUsDialog } from "./contact/ContactUsDialog";
 import { DonateModal } from "./donate/DonateModal";
+import { DonateReminderModal } from "./donate/reminder/DonateReminderModal";
+import {
+  DONATE_THANKS_TOAST_KEY,
+} from "./donate/reminder/donateReminderService";
+import { useDonateReminder } from "./donate/reminder/useDonateReminder";
 import { CONTACT_US_OPEN_EVENT } from "./contact/openContactUs";
-import { driveShareService, parseShareFileIdFromLocation } from "./google-drive";
+import {
+  driveShareService,
+  hydrateDriveAuthSession,
+  isGoogleDriveEnabled,
+  parseShareFileIdFromLocation,
+  preloadGoogleDriveAuth,
+} from "./google-drive";
 import {
   SceneVaultDialog,
   flushVaultSync,
@@ -481,6 +492,10 @@ const ExcalidrawWrapper = () => {
   useEffect(() => {
     initSessionEngagementTracking();
     trackEvent("load", "frame", getFrame());
+    if (isGoogleDriveEnabled()) {
+      void hydrateDriveAuthSession();
+      void preloadGoogleDriveAuth();
+    }
     // Delayed so that the app has a time to load the latest SW
     setTimeout(() => {
       trackEvent("load", "version", getVersion());
@@ -490,6 +505,10 @@ const ExcalidrawWrapper = () => {
   const [sceneVaultDialogOpen, setSceneVaultDialogOpen] = useState(false);
   const [contactUsDialogOpen, setContactUsDialogOpen] = useState(false);
   const [donateModalOpen, setDonateModalOpen] = useState(false);
+
+  const donateReminder = useDonateReminder({
+    onOpenDonateModal: () => setDonateModalOpen(true),
+  });
 
   useEffect(() => {
     if (!isContactFormEnabled()) {
@@ -509,17 +528,14 @@ const ExcalidrawWrapper = () => {
     if (!excalidrawAPI || !isDonateEnabled()) {
       return;
     }
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("donate") !== "thanks") {
+    try {
+      if (sessionStorage.getItem(DONATE_THANKS_TOAST_KEY) !== "1") {
+        return;
+      }
+      sessionStorage.removeItem(DONATE_THANKS_TOAST_KEY);
+    } catch {
       return;
     }
-    params.delete("donate");
-    const nextSearch = params.toString();
-    const nextUrl =
-      window.location.pathname +
-      (nextSearch ? `?${nextSearch}` : "") +
-      window.location.hash;
-    window.history.replaceState(null, "", nextUrl);
     excalidrawAPI.setToast({
       message: "Thank you for supporting diagrams.free!",
       duration: 5000,
@@ -1252,10 +1268,18 @@ const ExcalidrawWrapper = () => {
           />
         )}
         {isDonateEnabled() && (
-          <DonateModal
-            isOpen={donateModalOpen}
-            onClose={() => setDonateModalOpen(false)}
-          />
+          <>
+            <DonateReminderModal
+              isOpen={donateReminder.isOpen}
+              onSupport={donateReminder.handleSupport}
+              onSnoozeMonth={donateReminder.handleSnoozeMonth}
+              onClose={donateReminder.handleClose}
+            />
+            <DonateModal
+              isOpen={donateModalOpen}
+              onClose={() => setDonateModalOpen(false)}
+            />
+          </>
         )}
         {excalidrawAPI && isContactFormEnabled() && (
           <ContactUsDialog

@@ -4,6 +4,8 @@ import DialogActionButton from "@excalidraw/excalidraw/components/DialogActionBu
 
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
+import { syncDonateReminderWithDrive } from "../donate/reminder/donateReminderService";
+import { isDonateEnabled } from "../donate/donateConfig";
 import { flushVaultSync } from "../scene-vault/vaultSync";
 
 import {
@@ -13,9 +15,12 @@ import {
   getDriveLastSyncAt,
   getGoogleAccountEmail,
   handleDriveAuthFailure,
+  hasValidAccessToken,
+  hydrateDriveAuthSession,
   isDriveAutoSyncEnabled,
   isGoogleDriveEnabled,
   isSignedInToGoogle,
+  preloadGoogleDriveAuth,
   setDriveAutoSyncEnabled,
   setDriveLastSyncAt,
   signInWithGoogle,
@@ -45,6 +50,7 @@ export const GoogleDrivePanel = ({
   onSyncComplete,
 }: Props) => {
   const [signedIn, setSignedIn] = useState(isSignedInToGoogle());
+  const [sessionReady, setSessionReady] = useState(hasValidAccessToken());
   const [email, setEmail] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,15 +62,22 @@ export const GoogleDrivePanel = ({
   const refreshAccount = useCallback(async () => {
     if (!isSignedInToGoogle()) {
       setSignedIn(false);
+      setSessionReady(false);
       setEmail(null);
       return;
     }
     setSignedIn(true);
+    await hydrateDriveAuthSession();
+    setSessionReady(hasValidAccessToken());
     const accountEmail = await getGoogleAccountEmail();
     setEmail(accountEmail ?? null);
   }, []);
 
   useEffect(() => {
+    if (!isGoogleDriveEnabled()) {
+      return;
+    }
+    void preloadGoogleDriveAuth();
     void refreshAccount();
   }, [refreshAccount]);
 
@@ -77,6 +90,7 @@ export const GoogleDrivePanel = ({
     setError(null);
     try {
       await ensureAccessToken();
+      setSessionReady(true);
       const result = await action();
       setLastSyncAt(result.syncedAt);
       setDriveLastSyncAt(result.syncedAt);
@@ -87,6 +101,7 @@ export const GoogleDrivePanel = ({
         handleDriveAuthFailure();
         try {
           await ensureAccessToken();
+          setSessionReady(true);
           const result = await action();
           setLastSyncAt(result.syncedAt);
           setDriveLastSyncAt(result.syncedAt);
@@ -97,6 +112,7 @@ export const GoogleDrivePanel = ({
         } catch (retryErr) {
           console.error("[google-drive] retry after 401", retryErr);
           setSignedIn(false);
+          setSessionReady(false);
           setEmail(null);
           setError("Google sign-in expired. Please sign in again.");
         }
@@ -116,7 +132,11 @@ export const GoogleDrivePanel = ({
     try {
       const session = await signInWithGoogle();
       setSignedIn(true);
+      setSessionReady(true);
       setEmail(session.email ?? null);
+      if (isDonateEnabled()) {
+        void syncDonateReminderWithDrive();
+      }
     } catch (err) {
       console.error("[google-drive]", err);
       setError(err instanceof Error ? err.message : "Google sign-in failed.");
@@ -128,6 +148,7 @@ export const GoogleDrivePanel = ({
   const handleSignOut = () => {
     signOutFromGoogle();
     setSignedIn(false);
+    setSessionReady(false);
     setEmail(null);
     setError(null);
   };
@@ -156,7 +177,10 @@ export const GoogleDrivePanel = ({
 
       {signedIn ? (
         <p className="scene-vault-dialog__drive-account">
-          Signed in{email ? ` as ${email}` : ""}
+          Connected{email ? ` as ${email}` : ""}
+          {!sessionReady
+            ? " — Google may ask you to confirm when you back up or share"
+            : ""}
         </p>
       ) : (
         <p className="scene-vault-dialog__drive-account">Not signed in</p>

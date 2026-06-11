@@ -116,7 +116,9 @@
       <strong>Your drawings are not sent to Google Analytics.</strong> Custom events in the app are
       limited to coarse product actions, not diagram content. Examples include: opening the command
       palette, exporting an image or file, starting a new saved canvas, first use of the drawing
-      surface, and app load metadata (version, embedded vs top-level page).
+      surface, app load metadata (version, embedded vs top-level page), voluntary donation modal and
+      checkout clicks, donation reminder prompts (shown, snoozed, or support click), and when a return
+      from Stripe applies a local supporter preference.
     </p>
     <h2>Cookie consent (EEA and United Kingdom)</h2>
     <p>
@@ -169,6 +171,12 @@
       You can revoke access anytime in your
       <a href="https://myaccount.google.com/permissions">Google Account permissions</a>. Files on
       Drive remain under your Google account and sharing settings.
+    </p>
+    <p>
+      If you sign in, the app may store a small JSON file at
+      <code>diagrams.free/app/donate-reminder-state.json</code> on your Drive. It holds only
+      donation-reminder preferences (for example snooze dates and supporter flags), not your
+      drawings or vault contents.
     </p>
 
     <h2>Share links</h2>
