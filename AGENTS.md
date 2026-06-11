@@ -155,7 +155,15 @@ Implement remaining work per plan §9 (terminal `gcloud` + browser for Console).
 | Create links | `node docs/stripe/create-payment-links.mjs` → `docs/stripe/generated-vite.env` |
 | GitHub secrets | `bash docs/stripe/sync-github-secrets.sh` |
 
-**Agent notes:** Static site uses Payment Link redirects only — no `sk_live` in Vite env. Thank-you return: `https://diagrams.free/?donate=thanks`.
+**Agent notes:** Static site uses Payment Link redirects only — no `sk_live` in Vite env. Thank-you return: `https://diagrams.free/?donate=thanks&kind=once` or `&kind=monthly` (suppresses donation reminders).
+
+### Donation reminder (implemented)
+
+**Design doc:** [docs/donate-reminder-plan.md](docs/donate-reminder-plan.md)
+
+**Code:** `excalidraw-app/donate/reminder/` — short `DonateReminderModal`, triggers (30 min active tab time or 2nd+ tab session), once/day cap, 1-month snooze, Stripe return suppress (`kind=once` → 1y, `kind=monthly` → permanent). Optional Drive sync: `diagrams.free/app/donate-reminder-state.json` via existing `drive.file` scope (merge on sign-in / mount). GA4: `donate_reminder_*`, `donate_suppress_applied` in `engagement.ts`.
+
+**Operator:** Re-run `node docs/stripe/create-payment-links.mjs` so live Payment Links include `kind=` on success URLs.
 
 ---
 

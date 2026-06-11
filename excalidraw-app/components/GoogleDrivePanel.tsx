@@ -7,14 +7,13 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { syncDonateReminderWithDrive } from "../donate/reminder/donateReminderService";
 import { isDonateEnabled } from "../donate/donateConfig";
 import { flushVaultSync } from "../scene-vault/vaultSync";
+import { useDriveSessionMonitor } from "./useDriveSessionMonitor";
 
 import {
   DriveApiError,
   driveSyncService,
-  ensureAccessToken,
   getDriveLastSyncAt,
   getGoogleAccountEmail,
-  handleDriveAuthFailure,
   hasValidAccessToken,
   initDriveAuth,
   isDriveAutoSyncEnabled,
@@ -24,6 +23,7 @@ import {
   setDriveLastSyncAt,
   signInWithGoogle,
   signOutFromGoogle,
+  withDriveAccess,
 } from "../google-drive";
 
 type Props = {
@@ -49,7 +49,7 @@ export const GoogleDrivePanel = ({
   onSyncComplete,
 }: Props) => {
   const [signedIn, setSignedIn] = useState(isSignedInToGoogle());
-  const [sessionReady, setSessionReady] = useState(hasValidAccessToken());
+  const [sessionReady, setSessionReady] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +57,12 @@ export const GoogleDrivePanel = ({
     getDriveLastSyncAt(),
   );
   const [autoSync, setAutoSync] = useState(isDriveAutoSyncEnabled());
+
+  const onSessionReadyChange = useCallback((ready: boolean) => {
+    setSessionReady(ready);
+  }, []);
+
+  useDriveSessionMonitor(onSessionReadyChange);
 
   const refreshAccount = useCallback(async () => {
     if (!isSignedInToGoogle()) {
@@ -87,34 +93,18 @@ export const GoogleDrivePanel = ({
     setBusy(true);
     setError(null);
     try {
-      await ensureAccessToken();
+      const result = await withDriveAccess(action);
       setSessionReady(true);
-      const result = await action();
       setLastSyncAt(result.syncedAt);
       setDriveLastSyncAt(result.syncedAt);
       onSyncComplete();
     } catch (err) {
       console.error("[google-drive]", err);
       if (err instanceof DriveApiError && err.status === 401) {
-        handleDriveAuthFailure();
         setSessionReady(false);
-        try {
-          await ensureAccessToken();
-          setSessionReady(true);
-          const result = await action();
-          setLastSyncAt(result.syncedAt);
-          setDriveLastSyncAt(result.syncedAt);
-          onSyncComplete();
-          const accountEmail = await getGoogleAccountEmail();
-          setEmail(accountEmail ?? null);
-          return;
-        } catch (retryErr) {
-          console.error("[google-drive] retry after 401", retryErr);
-          setSessionReady(false);
-          setError(
-            "Could not refresh Google access. Try Backup now again, or sign out and back in.",
-          );
-        }
+        setError(
+          "Could not refresh Google access. Try Backup now again, Reconnect Google, or sign out and back in.",
+        );
       } else {
         setError(
           err instanceof Error ? err.message : "Google Drive sync failed.",
@@ -139,6 +129,22 @@ export const GoogleDrivePanel = ({
     } catch (err) {
       console.error("[google-drive]", err);
       setError(err instanceof Error ? err.message : "Google sign-in failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleReconnect = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const session = await signInWithGoogle({ forceConsent: true });
+      setSignedIn(true);
+      setSessionReady(true);
+      setEmail(session.email ?? null);
+    } catch (err) {
+      console.error("[google-drive]", err);
+      setError(err instanceof Error ? err.message : "Google reconnect failed.");
     } finally {
       setBusy(false);
     }
@@ -213,10 +219,17 @@ export const GoogleDrivePanel = ({
             Auto-sync My scenes to Drive after edits
           </label>
           {autoSyncPaused ? (
-            <p className="scene-vault-dialog__drive-hint">
-              Auto-sync is paused until you back up once to refresh Google
-              access.
-            </p>
+            <>
+              <p className="scene-vault-dialog__drive-hint">
+                Auto-sync is paused until you back up once to refresh Google
+                access.
+              </p>
+              <DialogActionButton
+                label="Reconnect Google"
+                onClick={handleReconnect}
+                disabled={isDisabled}
+              />
+            </>
           ) : null}
         </>
       ) : null}

@@ -22,8 +22,9 @@ import {
   bumpDonateReminderSessionCount,
   consumeDonateThanksUrl,
   getReminderEligibility,
+  markDonateReminderShownLocal,
+  persistDonateReminderShownToDrive,
   prepareDonateReminderState,
-  recordDonateReminderShown,
   type ReminderTrigger,
 } from "./donateReminderService";
 import { readLocalDonateReminderState } from "./donateReminderState";
@@ -44,13 +45,15 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
   const timerRunningRef = useRef(false);
   const trigger30mFiredRef = useRef(false);
   const secondSessionCheckedRef = useRef(false);
-  const pendingTriggerRef = useRef<ReminderTrigger | null>(null);
+  const isOpenRef = useRef(false);
   const visibilityVisibleRef = useRef(
     typeof document !== "undefined"
       ? document.visibilityState === "visible"
       : true,
   );
   const tickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  isOpenRef.current = isOpen;
 
   useLayoutEffect(() => {
     if (!isDonateEnabled()) {
@@ -63,7 +66,7 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
   }, []);
 
   const showReminder = useCallback((trigger: ReminderTrigger) => {
-    if (pendingTriggerRef.current || isOpen) {
+    if (isOpenRef.current) {
       return;
     }
     const state = readLocalDonateReminderState();
@@ -74,9 +77,11 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
     if (!eligible) {
       return;
     }
-    pendingTriggerRef.current = trigger;
+    markDonateReminderShownLocal();
+    trackDonateReminderShown(trigger);
+    void persistDonateReminderShownToDrive();
     setIsOpen(true);
-  }, [isOpen]);
+  }, []);
 
   const stopTimer = useCallback(() => {
     if (tickIntervalRef.current) {
@@ -122,18 +127,6 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    if (!isOpen || !pendingTriggerRef.current) {
-      return;
-    }
-    const trigger = pendingTriggerRef.current;
-    pendingTriggerRef.current = null;
-    void (async () => {
-      await recordDonateReminderShown();
-      trackDonateReminderShown(trigger);
-    })();
-  }, [isOpen]);
 
   useEffect(() => {
     if (!ready || !isDonateEnabled()) {
@@ -182,7 +175,6 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
   }, []);
 
   const handleClose = useCallback(() => {
-    pendingTriggerRef.current = null;
     setIsOpen(false);
   }, []);
 

@@ -5,8 +5,10 @@ import {
   isGoogleDriveEnabled,
   setDriveLastSyncAt,
 } from "./constants";
+import { notifyDriveAutoSyncFailed } from "./driveAutoSyncNotify";
 import { driveSyncService } from "./DriveSyncService";
 import { getAccessToken, isGoogleDriveLinked } from "./auth";
+import { DriveApiError } from "./errors";
 
 const DRIVE_SYNC_DEBOUNCE_MS = 2500;
 
@@ -26,6 +28,9 @@ const debouncedDriveBackup = debounce(() => {
     })
     .catch((error) => {
       console.error("[google-drive] auto-sync failed:", error);
+      if (error instanceof DriveApiError) {
+        notifyDriveAutoSyncFailed();
+      }
     });
 }, DRIVE_SYNC_DEBOUNCE_MS);
 
@@ -49,5 +54,8 @@ export const flushDriveVaultSync = async (): Promise<void> => {
     setDriveLastSyncAt(result.syncedAt);
   } catch (error) {
     console.error("[google-drive] flush backup failed:", error);
+    if (error instanceof DriveApiError) {
+      notifyDriveAutoSyncFailed();
+    }
   }
 };

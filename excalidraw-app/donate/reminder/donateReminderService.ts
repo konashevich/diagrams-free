@@ -116,12 +116,25 @@ const persistState = async (state: DonateReminderState): Promise<void> => {
   }
 };
 
-export const recordDonateReminderShown = async (): Promise<void> => {
+export const markDonateReminderShownLocal = (): void => {
   const state = readLocalDonateReminderState();
-  await persistState({
+  writeLocalDonateReminderState({
     ...state,
     lastReminderShownAt: new Date().toISOString(),
   });
+};
+
+export const persistDonateReminderShownToDrive = async (): Promise<void> => {
+  try {
+    await saveDonateReminderStateToDrive(readLocalDonateReminderState());
+  } catch (error) {
+    console.error("[donate-reminder] Drive save failed:", error);
+  }
+};
+
+export const recordDonateReminderShown = async (): Promise<void> => {
+  markDonateReminderShownLocal();
+  await persistDonateReminderShownToDrive();
 };
 
 export const applyDonateReminderSnoozeMonth = async (): Promise<void> => {
@@ -249,9 +262,11 @@ export const syncDonateReminderWithDrive = async (): Promise<void> => {
 };
 
 export const resetDonateReminderStateForTests = (): void => {
+  donateThanksUrlConsumed = false;
   writeLocalDonateReminderState(createDefaultDonateReminderState());
   try {
     sessionStorage.removeItem(DONATE_REMINDER_SESSION_BUMP_KEY);
+    sessionStorage.removeItem(DONATE_THANKS_TOAST_KEY);
   } catch {
     // ignore
   }

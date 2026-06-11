@@ -8,6 +8,7 @@ import {
   clearDriveAuthSession,
   hydrateDriveAuthSessionFromIdb,
   persistDriveAuthSession,
+  readSessionExpiresAtMs,
   readSessionFromLocalStorage,
   writeSessionToIdb,
 } from "./authSessionStore";
@@ -64,5 +65,12 @@ describe("authSessionStore", () => {
 
     expect(localStorage.getItem(DRIVE_TOKEN_STORAGE_KEY)).toBe("legacy-token");
     expect(sessionStorage.getItem(DRIVE_TOKEN_STORAGE_KEY)).toBeNull();
+  });
+
+  it("reads raw expiry for UI timers", () => {
+    const expiresAt = Date.now() + 3_600_000;
+    localStorage.setItem(DRIVE_TOKEN_STORAGE_KEY, "token");
+    localStorage.setItem(DRIVE_TOKEN_EXPIRY_STORAGE_KEY, String(expiresAt));
+    expect(readSessionExpiresAtMs()).toBe(expiresAt);
   });
 });

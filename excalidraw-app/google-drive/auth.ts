@@ -23,6 +23,25 @@ const pendingTokenRequests = new Map<string, Promise<DriveAuthSession>>();
 
 const isGisReady = (): boolean => !!window.google?.accounts?.oauth2;
 
+const waitForGisReady = (
+  resolve: () => void,
+  reject: (error: DriveAuthError) => void,
+): void => {
+  let attempts = 0;
+  const poll = () => {
+    if (isGisReady()) {
+      resolve();
+      return;
+    }
+    if (++attempts < 50) {
+      setTimeout(poll, 20);
+    } else {
+      reject(new DriveAuthError("Could not load Google sign-in."));
+    }
+  };
+  poll();
+};
+
 const loadGisScript = (): Promise<void> => {
   if (typeof window === "undefined") {
     return Promise.reject(new DriveAuthError("Google sign-in requires a browser."));
@@ -36,40 +55,18 @@ const loadGisScript = (): Promise<void> => {
         `script[src="${GIS_SCRIPT_URL}"]`,
       ) as HTMLScriptElement | null;
 
-      const finishIfReady = () => {
+      if (existing) {
         if (isGisReady()) {
           resolve();
-          return true;
-        }
-        return false;
-      };
-
-      if (existing) {
-        if (finishIfReady()) {
           return;
         }
-        existing.addEventListener("load", () => {
-          if (finishIfReady()) {
-            return;
-          }
-          resolve();
-        });
+        existing.addEventListener("load", () =>
+          waitForGisReady(resolve, reject),
+        );
         existing.addEventListener("error", () =>
           reject(new DriveAuthError("Could not load Google sign-in.")),
         );
-        // `load` does not replay if the script already finished loading.
-        let attempts = 0;
-        const poll = () => {
-          if (finishIfReady()) {
-            return;
-          }
-          if (++attempts < 50) {
-            setTimeout(poll, 20);
-          } else {
-            reject(new DriveAuthError("Could not load Google sign-in."));
-          }
-        };
-        poll();
+        waitForGisReady(resolve, reject);
         return;
       }
 
@@ -77,7 +74,7 @@ const loadGisScript = (): Promise<void> => {
       script.src = GIS_SCRIPT_URL;
       script.async = true;
       script.defer = true;
-      script.onload = () => resolve();
+      script.onload = () => waitForGisReady(resolve, reject);
       script.onerror = () =>
         reject(new DriveAuthError("Could not load Google sign-in."));
       document.head.appendChild(script);
@@ -202,6 +199,11 @@ type RequestTokenOptions = {
   loginHint?: string;
 };
 
+type SignInOptions = {
+  /** Show Google consent — for reconnect or new scope approval. */
+  forceConsent?: boolean;
+};
+
 const tokenRequestKey = (options: RequestTokenOptions): string =>
   `${options.prompt}\0${options.loginHint ?? ""}`;
 
@@ -216,6 +218,14 @@ const isInteractionRequiredError = (error: unknown): boolean => {
     message.includes("consent_required") ||
     message.includes("user logged out")
   );
+};
+
+const isConsentRequiredError = (error: unknown): boolean => {
+  if (!(error instanceof DriveAuthError)) {
+    return false;
+  }
+  const message = error.message.toLowerCase();
+  return message.includes("consent_required");
 };
 
 const requestGoogleAccessToken = (
@@ -236,7 +246,9 @@ const requestGoogleAccessToken = (
       throw new DriveNotConfiguredError();
     }
 
-    await loadGisScript();
+    if (!isGisReady()) {
+      await loadGisScript();
+    }
 
     return new Promise<DriveAuthSession>((resolve, reject) => {
       try {
@@ -295,32 +307,7 @@ const requestGoogleAccessToken = (
   return promise;
 };
 
-/** First-time or explicit sign-in (may show Google consent). */
-export const signInWithGoogle = async (): Promise<DriveAuthSession> => {
-  const loginHint = readStoredAccountEmail();
-  const prompt = isGoogleDriveLinked() ? "" : "consent";
-  return requestGoogleAccessToken({ prompt, loginHint });
-};
-
-/**
- * Returns a valid access token, refreshing via Google OAuth when needed.
- * Call only from an explicit user action (sign-in, backup, share, etc.) —
- * background auto-sync must use {@link getAccessToken} instead.
- */
-export const ensureAccessToken = async (): Promise<string> => {
-  await initDriveAuth();
-
-  const existing = getAccessToken();
-  if (existing) {
-    return existing;
-  }
-
-  if (!isGoogleDriveLinked()) {
-    throw new DriveAuthError("Sign in with Google first.");
-  }
-
-  const loginHint = readStoredAccountEmail();
-
+const refreshLinkedAccessToken = async (loginHint?: string): Promise<string> => {
   try {
     const session = await requestGoogleAccessToken({
       prompt: "none",
@@ -343,11 +330,63 @@ export const ensureAccessToken = async (): Promise<string> => {
     });
     return session.accessToken;
   } catch (error) {
-    if (error instanceof DriveAuthError) {
-      await clearDriveAuthSession();
+    if (!isConsentRequiredError(error)) {
+      if (error instanceof DriveAuthError) {
+        await clearDriveAuthSession();
+      }
+      throw error;
+    }
+  }
+
+  const session = await requestGoogleAccessToken({
+    prompt: "consent",
+    loginHint,
+  });
+  return session.accessToken;
+};
+
+/** First-time or explicit sign-in (may show Google consent). */
+export const signInWithGoogle = async (
+  options?: SignInOptions,
+): Promise<DriveAuthSession> => {
+  const loginHint = readStoredAccountEmail();
+  if (options?.forceConsent) {
+    return requestGoogleAccessToken({ prompt: "consent", loginHint });
+  }
+  const prompt = isGoogleDriveLinked() ? "" : "consent";
+  try {
+    return await requestGoogleAccessToken({ prompt, loginHint });
+  } catch (error) {
+    if (isGoogleDriveLinked() && isConsentRequiredError(error)) {
+      return requestGoogleAccessToken({ prompt: "consent", loginHint });
     }
     throw error;
   }
+};
+
+/**
+ * Returns a valid access token, refreshing via Google OAuth when needed.
+ * Call only from an explicit user action (sign-in, backup, share, etc.) —
+ * background auto-sync must use {@link getAccessToken} instead.
+ */
+export const ensureAccessToken = async (): Promise<string> => {
+  const existing = getAccessToken();
+  if (existing) {
+    return existing;
+  }
+
+  await initDriveAuth();
+
+  const hydrated = getAccessToken();
+  if (hydrated) {
+    return hydrated;
+  }
+
+  if (!isGoogleDriveLinked()) {
+    throw new DriveAuthError("Sign in with Google first.");
+  }
+
+  return refreshLinkedAccessToken(readStoredAccountEmail());
 };
 
 export const signOutFromGoogle = async (): Promise<void> => {

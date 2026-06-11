@@ -157,9 +157,11 @@ import { useDonateReminder } from "./donate/reminder/useDonateReminder";
 import { CONTACT_US_OPEN_EVENT } from "./contact/openContactUs";
 import {
   driveShareService,
+  driveAutoSyncFailToastMessage,
   initDriveAuth,
   isGoogleDriveEnabled,
   parseShareFileIdFromLocation,
+  registerDriveAutoSyncNotifier,
 } from "./google-drive";
 import {
   SceneVaultDialog,
@@ -563,6 +565,21 @@ const ExcalidrawWrapper = () => {
       message: "Thank you for supporting diagrams.free!",
       duration: 5000,
     });
+  }, [excalidrawAPI]);
+
+  useEffect(() => {
+    if (!excalidrawAPI || !isGoogleDriveEnabled()) {
+      registerDriveAutoSyncNotifier(null);
+      return;
+    }
+    registerDriveAutoSyncNotifier(() => {
+      excalidrawAPI.setToast({
+        message: driveAutoSyncFailToastMessage(),
+        closable: true,
+        duration: 6000,
+      });
+    });
+    return () => registerDriveAutoSyncNotifier(null);
   }, [excalidrawAPI]);
 
   const [activeVaultSceneId, setActiveVaultSceneId] = useState<string | null>(

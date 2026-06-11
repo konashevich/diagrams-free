@@ -21,10 +21,11 @@ import { useEffect, useRef, useState } from "react";
 import { atom, useAtom, useAtomValue } from "../app-jotai";
 import { activeRoomLinkAtom } from "../collab/Collab";
 import {
-  ensureAccessToken,
+  DriveApiError,
   initDriveAuth,
   isGoogleDriveLinked,
   signInWithGoogle,
+  withDriveAccess,
 } from "../google-drive";
 
 import "./ShareDialog.scss";
@@ -209,14 +210,20 @@ const DriveShareSection = ({
     try {
       if (!isGoogleDriveLinked()) {
         await signInWithGoogle();
-      } else {
-        await ensureAccessToken();
       }
-      await onCreateDriveShareLink();
+      await withDriveAccess(async () => {
+        await onCreateDriveShareLink();
+      });
       handleClose();
     } catch (err) {
       console.error("[google-drive] share", err);
-      setError(err instanceof Error ? err.message : "Could not create link.");
+      if (err instanceof DriveApiError && err.status === 401) {
+        setError(
+          "Could not refresh Google access. Try again or reconnect Google in My scenes.",
+        );
+      } else {
+        setError(err instanceof Error ? err.message : "Could not create link.");
+      }
     } finally {
       setBusy(false);
     }

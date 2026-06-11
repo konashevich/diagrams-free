@@ -14,6 +14,8 @@ const driveAuthStore = createStore("diagrams-free-drive-auth", "session");
 
 const IDB_SESSION_KEY = "oauth-session";
 
+let sessionStoreQueue: Promise<void> = Promise.resolve();
+
 const isValidSession = (
   session: StoredDriveSession | null,
 ): session is StoredDriveSession =>
@@ -21,6 +23,28 @@ const isValidSession = (
   !!session.accessToken &&
   Number.isFinite(session.expiresAt) &&
   session.expiresAt > Date.now();
+
+const enqueueSessionStoreOp = <T>(op: () => Promise<T>): Promise<T> => {
+  const result = sessionStoreQueue.then(op, op);
+  sessionStoreQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+};
+
+/** Raw expiry timestamp (ms), including expired sessions — for UI timers. */
+export const readSessionExpiresAtMs = (): number | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const raw = localStorage.getItem(DRIVE_TOKEN_EXPIRY_STORAGE_KEY);
+  if (!raw) {
+    return null;
+  }
+  const expiresAt = Number(raw);
+  return Number.isFinite(expiresAt) ? expiresAt : null;
+};
 
 export const readSessionFromLocalStorage = (): StoredDriveSession | null => {
   if (typeof window === "undefined") {
@@ -138,6 +162,8 @@ export const persistDriveAuthSession = (
 };
 
 export const clearDriveAuthSession = async (): Promise<void> => {
-  clearSessionFromLocalStorage();
-  await clearSessionFromIdb();
+  await enqueueSessionStoreOp(async () => {
+    clearSessionFromLocalStorage();
+    await clearSessionFromIdb();
+  });
 };

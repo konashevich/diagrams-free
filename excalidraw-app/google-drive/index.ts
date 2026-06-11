@@ -77,6 +77,14 @@ export {
 } from "./shareLink";
 
 export {
+  driveAutoSyncFailToastMessage,
+  notifyDriveAutoSyncFailed,
+  registerDriveAutoSyncNotifier,
+} from "./driveAutoSyncNotify";
+
+export { withDriveAccess } from "./withDriveAccess";
+
+export {
   flushDriveVaultSync,
   scheduleDriveVaultSync,
 } from "./driveVaultSync";
