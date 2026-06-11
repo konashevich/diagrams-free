@@ -45,6 +45,7 @@ export {
   preloadGoogleDriveAuth,
   signInWithGoogle,
   signOutFromGoogle,
+  warmDriveAccessToken,
 } from "./auth";
 
 export {

@@ -16,6 +16,7 @@ import {
   getGoogleAccountEmail,
   hasValidAccessToken,
   initDriveAuth,
+  warmDriveAccessToken,
   isDriveAccessRefreshError,
   isDriveAutoSyncEnabled,
   isGoogleDriveEnabled,
@@ -73,7 +74,7 @@ export const GoogleDrivePanel = ({
       return;
     }
     setSignedIn(true);
-    await initDriveAuth();
+    await warmDriveAccessToken();
     setSessionReady(hasValidAccessToken());
     const accountEmail = await getGoogleAccountEmail();
     setEmail(accountEmail ?? null);

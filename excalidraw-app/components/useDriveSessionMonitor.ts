@@ -4,6 +4,8 @@ import {
   hasValidAccessToken,
   initDriveAuth,
   isGoogleDriveEnabled,
+  isSignedInToGoogle,
+  warmDriveAccessToken,
 } from "../google-drive";
 import { readSessionExpiresAtMs } from "../google-drive/authSessionStore";
 
@@ -34,6 +36,9 @@ export const useDriveSessionMonitor = (
 
     const sync = async () => {
       await initDriveAuth();
+      if (isSignedInToGoogle()) {
+        await warmDriveAccessToken();
+      }
       onSessionReadyChange(hasValidAccessToken());
       scheduleExpiryCheck();
     };

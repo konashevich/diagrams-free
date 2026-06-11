@@ -315,7 +315,10 @@ const requestGoogleAccessToken = (
   return promise;
 };
 
-const refreshLinkedAccessToken = async (loginHint?: string): Promise<string> => {
+/** Silent GIS refresh (`prompt: none` then `""`); no consent UI. */
+const refreshLinkedAccessTokenSilently = async (
+  loginHint?: string,
+): Promise<string | null> => {
   try {
     const session = await requestGoogleAccessToken({
       prompt: "none",
@@ -327,7 +330,7 @@ const refreshLinkedAccessToken = async (loginHint?: string): Promise<string> => 
       if (error instanceof DriveAuthError) {
         await clearDriveAuthSession();
       }
-      throw error;
+      return null;
     }
   }
 
@@ -337,13 +340,15 @@ const refreshLinkedAccessToken = async (loginHint?: string): Promise<string> => 
       loginHint,
     });
     return session.accessToken;
-  } catch (error) {
-    if (!isConsentRequiredError(error)) {
-      if (error instanceof DriveAuthError) {
-        await clearDriveAuthSession();
-      }
-      throw error;
-    }
+  } catch {
+    return null;
+  }
+};
+
+const refreshLinkedAccessToken = async (loginHint?: string): Promise<string> => {
+  const silent = await refreshLinkedAccessTokenSilently(loginHint);
+  if (silent) {
+    return silent;
   }
 
   const session = await requestGoogleAccessToken({
@@ -351,6 +356,29 @@ const refreshLinkedAccessToken = async (loginHint?: string): Promise<string> => 
     loginHint,
   });
   return session.accessToken;
+};
+
+/**
+ * Try to obtain a valid access token on a user gesture without consent UI.
+ * Use when opening My scenes or refocusing the tab — keeps auto-sync warm.
+ */
+export const warmDriveAccessToken = async (): Promise<boolean> => {
+  if (getAccessToken()) {
+    return true;
+  }
+
+  await initDriveAuth();
+
+  if (getAccessToken()) {
+    return true;
+  }
+
+  if (!isGoogleDriveLinked()) {
+    return false;
+  }
+
+  const token = await refreshLinkedAccessTokenSilently(readStoredAccountEmail());
+  return !!token;
 };
 
 /** First-time or explicit sign-in (may show Google consent). */
