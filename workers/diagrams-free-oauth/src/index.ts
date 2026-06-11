@@ -173,14 +173,21 @@ const decodeJwtPayload = (jwt: string): Record<string, unknown> | null => {
   }
 };
 
+const missingClientSecretResponse = (): TokenResponse => ({
+  error: "invalid_client",
+  error_description:
+    "OAuth proxy: GOOGLE_CLIENT_SECRET is not set on the Worker (required for Web OAuth clients).",
+});
+
 const googleTokenRequest = async (
   params: Record<string, string>,
   env: Env,
 ): Promise<TokenResponse> => {
-  const body = new URLSearchParams(params);
-  if (env.GOOGLE_CLIENT_SECRET) {
-    body.set("client_secret", env.GOOGLE_CLIENT_SECRET);
+  if (!env.GOOGLE_CLIENT_SECRET?.trim()) {
+    return missingClientSecretResponse();
   }
+  const body = new URLSearchParams(params);
+  body.set("client_secret", env.GOOGLE_CLIENT_SECRET);
   const response = await fetch(GOOGLE_TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },

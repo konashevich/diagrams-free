@@ -30,6 +30,8 @@ meta*.json
 .specstory
 # Stripe operator secrets & generated output (scripts + *.md in docs/stripe/ are tracked)
 docs/stripe/secrets.env
+docs/google-oauth/secrets.env
+docs/google-oauth/client_secret*.json
 docs/stripe/generated-vite.env
 docs/stripe/payment-links.env
 docs/stripe/stripe_backup_code.txt

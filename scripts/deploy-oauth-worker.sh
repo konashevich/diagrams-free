@@ -6,11 +6,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORKER_DIR="${ROOT}/workers/diagrams-free-oauth"
 CF_ENV="${CLOUDFLARE_ENV:-/mnt/merged_ssd/Cloudflare/account.env}"
-
 if [[ -f "$CF_ENV" ]]; then
   # shellcheck source=/dev/null
   source "$CF_ENV"
 fi
+
+# shellcheck source=/dev/null
+source "${ROOT}/scripts/google-oauth-load-secret.sh"
+google_oauth_load_secret "$ROOT" || true
 
 : "${CLOUDFLARE_API_TOKEN:?Set CLOUDFLARE_API_TOKEN (Workers + KV permissions)}"
 : "${CLOUDFLARE_ACCOUNT_ID:?Set CLOUDFLARE_ACCOUNT_ID}"
@@ -42,11 +45,12 @@ fi
 
 echo "$SESSION_SIGNING_KEY" | npx wrangler secret put SESSION_SIGNING_KEY
 
-if [[ -n "${GOOGLE_CLIENT_SECRET:-}" ]]; then
-  echo "$GOOGLE_CLIENT_SECRET" | npx wrangler secret put GOOGLE_CLIENT_SECRET
-else
-  echo "Note: GOOGLE_CLIENT_SECRET not set — using PKCE-only token exchange."
+if [[ -z "${GOOGLE_CLIENT_SECRET:-}" ]]; then
+  echo "ERROR: GOOGLE_CLIENT_SECRET is required for Web OAuth clients." >&2
+  echo "Run: ./scripts/set-google-oauth-worker-secret.sh" >&2
+  exit 1
 fi
+echo "$GOOGLE_CLIENT_SECRET" | npx wrangler secret put GOOGLE_CLIENT_SECRET
 
 npx wrangler deploy
 
