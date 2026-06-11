@@ -31,7 +31,7 @@
   <body>
     <h1>Privacy policy</h1>
     <p><strong>diagrams.free</strong> (<a href="https://diagrams.free">https://diagrams.free</a>)</p>
-    <p>Last updated: 5 June 2026</p>
+    <p>Last updated: 11 June 2026</p>
 
     <p><em>Plain-language summary, not legal advice.</em></p>
 
@@ -149,7 +149,7 @@
       (where available for your browser).
     </p>
 
-    <h2>Google sign-in and Drive (optional)</h2>
+    <h2 id="google-drive">Google sign-in and Drive (optional)</h2>
     <p>
       If you choose to connect Google Drive, sign-in and file access are handled by Google under
       <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a>. diagrams.free
@@ -171,6 +171,20 @@
       You can revoke access anytime in your
       <a href="https://myaccount.google.com/permissions">Google Account permissions</a>. Files on
       Drive remain under your Google account and sharing settings.
+    </p>
+    <p>
+      To keep Drive backup working without asking you to sign in every hour, diagrams.free uses a
+      small <strong>Cloudflare Worker</strong> at <code>api.diagrams.free</code> as an OAuth helper.
+      When you connect Google Drive, Google may issue a long-lived <strong>refresh token</strong>;
+      that token is stored in <strong>Cloudflare Workers KV</strong> (edge storage operated by
+      Cloudflare, Inc.), not in the static site on GitHub Pages. The browser keeps only a short-lived
+      <strong>access token</strong> and a signed <strong>HttpOnly cookie</strong>
+      (<code>df_oauth</code> on <code>diagrams.free</code>) that points to your server-side session.
+      Your drawings and vault contents are <strong>not</strong> sent to this service — only OAuth
+      tokens needed for Drive API calls. When you sign out of Drive in the app, we delete the KV
+      session and clear the cookie. Cloudflare&rsquo;s
+      <a href="https://www.cloudflare.com/privacypolicy/">Privacy Policy</a> applies to that
+      infrastructure.
     </p>
     <p>
       If you sign in, the app may store a small JSON file at
@@ -203,22 +217,32 @@
         <strong>GitHub Pages</strong> — hosts the static site files when you visit
         <code>diagrams.free</code>.
       </li>
+      <li>
+        <strong>Cloudflare Workers</strong> — optional Google Drive sign-in helper at
+        <code>api.diagrams.free</code> (OAuth refresh tokens only; see
+        <a href="#google-drive">Google sign-in and Drive</a>).
+      </li>
     </ul>
     <p>Each third party has its own privacy practices.</p>
 
     <h2>Cookies and similar technologies</h2>
     <p>
       diagrams.free itself does not set authentication cookies for a diagrams.free account (there is
-      no account). We store your analytics consent choice in browser local storage. Google
-      Analytics and Google sign-in may set cookies or use local storage as described above when
-      those features load and when you have allowed them.
+      no account). We store your analytics consent choice in browser local storage. If you connect
+      Google Drive, <code>api.diagrams.free</code> may set an HttpOnly session cookie
+      (<code>df_oauth</code>) as described above. Google Analytics and Google sign-in may set
+      cookies or use local storage as described above when those features load and when you have
+      allowed them.
     </p>
 
     <h2>Retention</h2>
     <p>
       Data on your device persists until you clear browser storage or uninstall site data.
       Analytics retention is controlled by Google Analytics settings. Drive files follow
-      Google&rsquo;s retention until you delete them.
+      Google&rsquo;s retention until you delete them. Google Drive refresh tokens held in Cloudflare
+      KV are removed when you sign out in the app or when the session is revoked; otherwise they
+      remain until you revoke access in your Google Account or we delete them as part of service
+      maintenance.
     </p>
 
     <h2>Your rights</h2>
