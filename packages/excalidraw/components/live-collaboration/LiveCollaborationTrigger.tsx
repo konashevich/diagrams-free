@@ -1,6 +1,6 @@
 import clsx from "clsx";
 
-import { MQ_MIN_WIDTH_DESKTOP, type EditorInterface } from "@excalidraw/common";
+import type { EditorInterface } from "@excalidraw/common";
 
 import { t } from "../../i18n";
 import { Button } from "../Button";
@@ -12,7 +12,7 @@ import "./LiveCollaborationTrigger.scss";
 const LiveCollaborationTrigger = ({
   isCollaborating,
   onSelect,
-  editorInterface,
+  editorInterface: _editorInterface,
   ...rest
 }: {
   isCollaborating: boolean;
@@ -21,20 +21,16 @@ const LiveCollaborationTrigger = ({
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) => {
   const appState = useUIAppState();
 
-  const showIconOnly =
-    editorInterface?.formFactor !== "desktop" ||
-    appState.width < MQ_MIN_WIDTH_DESKTOP;
-
   return (
     <Button
       {...rest}
       className={clsx("collab-button", { active: isCollaborating })}
       type="button"
       onSelect={onSelect}
-      style={{ position: "relative", width: showIconOnly ? undefined : "auto" }}
-      title={t("labels.liveCollaboration")}
+      style={{ position: "relative" }}
+      title={t("labels.share")}
     >
-      {showIconOnly ? share : t("labels.share")}
+      {share}
       {appState.collaborators.size > 0 && (
         <div className="CollabButton-collaborators">
           {appState.collaborators.size}
