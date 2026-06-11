@@ -14,6 +14,12 @@ import {
   readSessionFromLocalStorage,
 } from "./authSessionStore";
 import { DriveAuthError, DriveNotConfiguredError } from "./errors";
+import {
+  isOAuthProxyEnabled,
+  refreshViaOAuthProxy,
+  revokeOAuthProxySession,
+  signInViaOAuthProxy,
+} from "./oauthProxy";
 
 import type { DriveAuthSession } from "./types";
 
@@ -91,15 +97,15 @@ const loadGisScript = (): Promise<void> => {
   return gisLoadPromise;
 };
 
-/** Preload GIS so token requests run inside the same user gesture as Backup/Share clicks. */
+/** Preload GIS when using token model (not needed for OAuth proxy). */
 export const preloadGoogleDriveAuth = (): Promise<void> => {
-  if (!isGoogleDriveEnabled()) {
+  if (!isGoogleDriveEnabled() || isOAuthProxyEnabled()) {
     return Promise.resolve();
   }
   return loadGisScript().catch(() => {});
 };
 
-/** Hydrate stored token + preload GIS once per app load. */
+/** Hydrate stored token once per app load. */
 export const initDriveAuth = (): Promise<boolean> => {
   if (!isGoogleDriveEnabled()) {
     return Promise.resolve(false);
@@ -148,7 +154,6 @@ export const isGoogleDriveLinked = (): boolean => {
   if (localStorage.getItem(DRIVE_LINKED_STORAGE_KEY) === "true") {
     return true;
   }
-  // Same-tab upgrade: active token but linked flag not yet written.
   if (readStoredSession()) {
     markGoogleDriveLinked();
     return true;
@@ -185,7 +190,6 @@ export const getAccessToken = (): string | null =>
 
 export const hasValidAccessToken = (): boolean => !!getAccessToken();
 
-/** True when the user linked Google Drive and did not sign out. */
 export const isSignedInToGoogle = (): boolean => isGoogleDriveLinked();
 
 export const getGoogleAccountEmail = async (): Promise<string | undefined> => {
@@ -202,13 +206,11 @@ export const getGoogleAccountEmail = async (): Promise<string | undefined> => {
 };
 
 type RequestTokenOptions = {
-  /** none = silent; empty string = skip consent when already granted; consent = first link. */
   prompt: "none" | "" | "consent";
   loginHint?: string;
 };
 
 type SignInOptions = {
-  /** Show Google consent — for reconnect or new scope approval. */
   forceConsent?: boolean;
 };
 
@@ -315,7 +317,6 @@ const requestGoogleAccessToken = (
   return promise;
 };
 
-/** Silent GIS refresh (`prompt: none` then `""`); no consent UI. */
 const refreshLinkedAccessTokenSilently = async (
   loginHint?: string,
 ): Promise<string | null> => {
@@ -358,10 +359,24 @@ const refreshLinkedAccessToken = async (loginHint?: string): Promise<string> => 
   return session.accessToken;
 };
 
-/**
- * Try to obtain a valid access token on a user gesture without consent UI.
- * Use when opening My scenes or refocusing the tab — keeps auto-sync warm.
- */
+const refreshAccessTokenSilently = async (): Promise<string | null> => {
+  if (isOAuthProxyEnabled()) {
+    const session = await refreshViaOAuthProxy();
+    return session?.accessToken ?? null;
+  }
+  return refreshLinkedAccessTokenSilently(readStoredAccountEmail());
+};
+
+const completeProxySignIn = async (
+  session: DriveAuthSession,
+): Promise<DriveAuthSession> => {
+  markGoogleDriveLinked();
+  if (session.email) {
+    persistAccountEmail(session.email);
+  }
+  return session;
+};
+
 export const warmDriveAccessToken = async (): Promise<boolean> => {
   if (getAccessToken()) {
     return true;
@@ -377,15 +392,23 @@ export const warmDriveAccessToken = async (): Promise<boolean> => {
     return false;
   }
 
-  const token = await refreshLinkedAccessTokenSilently(readStoredAccountEmail());
+  const token = await refreshAccessTokenSilently();
   return !!token;
 };
 
-/** First-time or explicit sign-in (may show Google consent). */
 export const signInWithGoogle = async (
   options?: SignInOptions,
 ): Promise<DriveAuthSession> => {
   const loginHint = readStoredAccountEmail();
+
+  if (isOAuthProxyEnabled()) {
+    const session = await signInViaOAuthProxy({
+      forceConsent: options?.forceConsent || !isGoogleDriveLinked(),
+      loginHint,
+    });
+    return completeProxySignIn(session);
+  }
+
   if (options?.forceConsent) {
     return requestGoogleAccessToken({ prompt: "consent", loginHint });
   }
@@ -400,11 +423,6 @@ export const signInWithGoogle = async (
   }
 };
 
-/**
- * Returns a valid access token, refreshing via Google OAuth when needed.
- * Call only from an explicit user action (sign-in, backup, share, etc.) —
- * background auto-sync must use {@link getAccessToken} instead.
- */
 export const ensureAccessToken = async (): Promise<string> => {
   const existing = getAccessToken();
   if (existing) {
@@ -422,13 +440,42 @@ export const ensureAccessToken = async (): Promise<string> => {
     throw new DriveAuthError("Sign in with Google first.");
   }
 
+  if (isOAuthProxyEnabled()) {
+    const session = await refreshViaOAuthProxy();
+    if (session?.accessToken) {
+      if (session.email) {
+        persistAccountEmail(session.email);
+      }
+      return session.accessToken;
+    }
+    const signedIn = await signInViaOAuthProxy({
+      loginHint: readStoredAccountEmail(),
+    });
+    await completeProxySignIn(signedIn);
+    return signedIn.accessToken;
+  }
+
   return refreshLinkedAccessToken(readStoredAccountEmail());
+};
+
+/** For auto-sync: refresh silently when OAuth proxy is enabled. */
+export const tryRefreshAccessToken = async (): Promise<boolean> => {
+  if (getAccessToken()) {
+    return true;
+  }
+  if (!isGoogleDriveLinked()) {
+    return false;
+  }
+  return !!(await refreshAccessTokenSilently());
 };
 
 export const signOutFromGoogle = async (): Promise<void> => {
   const token = getAccessToken();
   if (token && window.google?.accounts?.oauth2) {
     window.google.accounts.oauth2.revoke(token, () => {});
+  }
+  if (isOAuthProxyEnabled()) {
+    await revokeOAuthProxySession();
   }
   await clearDriveAuthSession();
   clearGoogleDriveLinked();
@@ -437,7 +484,6 @@ export const signOutFromGoogle = async (): Promise<void> => {
   driveAuthInitPromise = null;
 };
 
-/** Drop expired token after 401; keep linked state so silent refresh can run. */
 export const handleDriveAuthFailure = (): void => {
   void clearDriveAuthSession();
   localStorage.removeItem(DRIVE_FOLDER_CACHE_KEY);

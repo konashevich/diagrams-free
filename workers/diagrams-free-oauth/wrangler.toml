@@ -1,0 +1,16 @@
+name = "diagrams-free-oauth"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+account_id = "6456893161a09453fcc36d0dcd356052"
+
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "c439364e86cf40208f74593a5fda3400"
+
+[vars]
+GOOGLE_CLIENT_ID = "658308114676-0ova0t3ht70bualff010nb5j6pc6j3ha.apps.googleusercontent.com"
+ALLOWED_ORIGINS = "https://diagrams.free,http://localhost:3000,http://127.0.0.1:3000"
+
+[[routes]]
+pattern = "api.diagrams.free/*"
+zone_name = "diagrams.free"

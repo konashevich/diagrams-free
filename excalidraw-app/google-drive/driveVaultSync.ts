@@ -7,7 +7,7 @@ import {
 } from "./constants";
 import { notifyDriveAutoSyncFailed } from "./driveAutoSyncNotify";
 import { driveSyncService } from "./DriveSyncService";
-import { getAccessToken, isGoogleDriveLinked } from "./auth";
+import { getAccessToken, isGoogleDriveLinked, tryRefreshAccessToken } from "./auth";
 import { DriveApiError } from "./errors";
 
 const DRIVE_SYNC_DEBOUNCE_MS = 2500;
@@ -20,12 +20,15 @@ const debouncedDriveBackup = debounce(() => {
   if (
     !isGoogleDriveEnabled() ||
     !isGoogleDriveLinked() ||
-    !isDriveAutoSyncEnabled() ||
-    !getAccessToken()
+    !isDriveAutoSyncEnabled()
   ) {
     return;
   }
-  void driveSyncService
+  void (async () => {
+    if (!(await tryRefreshAccessToken()) || !getAccessToken()) {
+      return;
+    }
+    return driveSyncService
     .backupVaultToDrive()
     .then((result) => {
       setDriveLastSyncAt(result.syncedAt);
@@ -36,6 +39,7 @@ const debouncedDriveBackup = debounce(() => {
         notifyDriveAutoSyncFailed();
       }
     });
+  })();
 }, DRIVE_SYNC_DEBOUNCE_MS);
 
 export const scheduleDriveVaultSync = (): void => {
@@ -48,9 +52,11 @@ export const flushDriveVaultSync = async (): Promise<void> => {
   if (
     !isGoogleDriveEnabled() ||
     !isGoogleDriveLinked() ||
-    !isDriveAutoSyncEnabled() ||
-    !getAccessToken()
+    !isDriveAutoSyncEnabled()
   ) {
+    return;
+  }
+  if (!(await tryRefreshAccessToken()) || !getAccessToken()) {
     return;
   }
   try {

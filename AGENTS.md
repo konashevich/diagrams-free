@@ -95,7 +95,7 @@ When the flag is `false`, behavior matches upstream Excalidraw.
 **Plan (status + agent playbook):** [docs/google-drive-sync-and-share-plan.md](docs/google-drive-sync-and-share-plan.md)  
 **OAuth setup:** [docs/google-oauth-setup.md](docs/google-oauth-setup.md)
 
-**Code today:** `excalidraw-app/google-drive/` — auth (GIS token model, ~1h access tokens), backup/restore, share, auto-sync. **OAuth sessions:** [docs/google-drive-oauth-sessions.md](docs/google-drive-oauth-sessions.md).
+**Code today:** `excalidraw-app/google-drive/` — auth (OAuth proxy when `VITE_APP_GOOGLE_OAUTH_PROXY_URL` set; else GIS token model), backup/restore, share, auto-sync. **Worker:** `workers/diagrams-free-oauth/`. **OAuth sessions:** [docs/google-drive-oauth-sessions.md](docs/google-drive-oauth-sessions.md).
 
 **Concept:**
 

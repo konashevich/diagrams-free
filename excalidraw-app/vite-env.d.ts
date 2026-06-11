@@ -45,6 +45,8 @@ interface ImportMetaEnv {
   VITE_APP_GOOGLE_CLIENT_ID: string;
   VITE_APP_GOOGLE_API_KEY: string;
   VITE_APP_GOOGLE_DRIVE_FOLDER: string;
+  /** Cloudflare Worker OAuth proxy (e.g. https://api.diagrams.free). */
+  VITE_APP_GOOGLE_OAUTH_PROXY_URL: string;
 
   VITE_APP_ENABLE_TRACKING: string;
   /** Google Analytics 4 measurement ID (e.g. G-XXXXXXXXXX). */

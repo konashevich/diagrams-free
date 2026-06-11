@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>diagrams.free — Google sign-in</title>
+  </head>
+  <body>
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var code = params.get("code");
+        var error = params.get("error");
+        var payload = code
+          ? { type: "diagrams-free-oauth", code: code }
+          : { type: "diagrams-free-oauth", error: error || "no_code" };
+        if (window.opener) {
+          window.opener.postMessage(payload, window.location.origin);
+          window.close();
+        } else {
+          document.body.textContent = error
+            ? "Sign-in failed. Close this tab and try again from diagrams.free."
+            : "Sign-in complete. You can close this tab.";
+        }
+      })();
+    </script>
+  </body>
+</html>

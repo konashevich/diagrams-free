@@ -6,6 +6,7 @@ export {
   getDriveRootFolderName,
   getGoogleApiKey,
   getGoogleClientId,
+  getGoogleOAuthProxyUrl,
   isDriveAutoSyncEnabled,
   isGoogleDriveEnabled,
   setDriveAutoSyncEnabled,
@@ -45,8 +46,11 @@ export {
   preloadGoogleDriveAuth,
   signInWithGoogle,
   signOutFromGoogle,
+  tryRefreshAccessToken,
   warmDriveAccessToken,
 } from "./auth";
+
+export { isOAuthProxyEnabled } from "./oauthProxy";
 
 export {
   clearDriveFolderCache,

@@ -2,6 +2,24 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <script>
+      (function () {
+        if (!window.opener) {
+          return;
+        }
+        var params = new URLSearchParams(window.location.search);
+        var code = params.get("code");
+        var error = params.get("error");
+        if (!code && !error) {
+          return;
+        }
+        window.opener.postMessage(
+          { type: "diagrams-free-oauth", code: code, error: error || undefined },
+          window.location.origin,
+        );
+        window.close();
+      })();
+    </script>
     <title>diagrams.free — Hand-drawn diagrams in your browser</title>
     <meta
       name="viewport"

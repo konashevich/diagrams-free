@@ -2,6 +2,7 @@
 
 export const GOOGLE_DRIVE_ENV_KEY = "VITE_APP_GOOGLE_DRIVE";
 export const GOOGLE_CLIENT_ID_ENV_KEY = "VITE_APP_GOOGLE_CLIENT_ID";
+export const GOOGLE_OAUTH_PROXY_URL_ENV_KEY = "VITE_APP_GOOGLE_OAUTH_PROXY_URL";
 export const GOOGLE_API_KEY_ENV_KEY = "VITE_APP_GOOGLE_API_KEY";
 export const GOOGLE_DRIVE_FOLDER_ENV_KEY = "VITE_APP_GOOGLE_DRIVE_FOLDER";
 
@@ -52,6 +53,9 @@ export const getDriveRootFolderName = (): string =>
 
 export const getGoogleClientId = (): string | undefined =>
   import.meta.env.VITE_APP_GOOGLE_CLIENT_ID?.trim() || undefined;
+
+export const getGoogleOAuthProxyUrl = (): string | undefined =>
+  import.meta.env.VITE_APP_GOOGLE_OAUTH_PROXY_URL?.trim() || undefined;
 
 export const getGoogleApiKey = (): string | undefined =>
   import.meta.env.VITE_APP_GOOGLE_API_KEY?.trim() || undefined;
