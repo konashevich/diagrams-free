@@ -28,7 +28,7 @@ export const DRIVE_FILE_MIME_TYPE = "application/json";
 
 export const DRIVE_MANIFEST_VERSION = 1;
 
-export const DRIVE_FOLDER_CACHE_KEY = "diagrams-free:drive-folder-ids-v2";
+export const DRIVE_FOLDER_CACHE_KEY = "diagrams-free:drive-folder-ids-v3";
 
 /** Google OAuth access token (~1h); stored in localStorage to survive PWA restarts. */
 export const DRIVE_TOKEN_STORAGE_KEY = "diagrams-free:google-access-token";
@@ -46,6 +46,19 @@ export const DRIVE_ACCOUNT_EMAIL_STORAGE_KEY =
 export const DRIVE_AUTO_SYNC_STORAGE_KEY = "diagrams-free:drive-auto-sync";
 
 export const DRIVE_LAST_SYNC_STORAGE_KEY = "diagrams-free:drive-last-sync-at";
+
+export const DRIVE_LAST_PUSH_AT_STORAGE_KEY = "diagrams-free:drive-last-push-at";
+
+export const DRIVE_LAST_PULL_AT_STORAGE_KEY = "diagrams-free:drive-last-pull-at";
+
+export const DRIVE_REMOTE_MANIFEST_AT_STORAGE_KEY =
+  "diagrams-free:drive-remote-manifest-at";
+
+export const DRIVE_LAST_PUSH_REVISION_STORAGE_KEY =
+  "diagrams-free:drive-last-push-revision";
+
+export const VAULT_CONTENT_REVISION_STORAGE_KEY =
+  "diagrams-free:vault-content-revision";
 
 export const getDriveRootFolderName = (): string =>
   import.meta.env.VITE_APP_GOOGLE_DRIVE_FOLDER?.trim() ||
@@ -91,4 +104,57 @@ export const getDriveLastSyncAt = (): number | null => {
 
 export const setDriveLastSyncAt = (timestamp: number): void => {
   localStorage.setItem(DRIVE_LAST_SYNC_STORAGE_KEY, String(timestamp));
+};
+
+const readNumericStorage = (key: string): number | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const raw = localStorage.getItem(key);
+  if (!raw) {
+    return null;
+  }
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+};
+
+const writeNumericStorage = (key: string, value: number): void => {
+  localStorage.setItem(key, String(value));
+};
+
+export const getDriveLastPushAt = (): number | null =>
+  readNumericStorage(DRIVE_LAST_PUSH_AT_STORAGE_KEY);
+
+export const setDriveLastPushAt = (timestamp: number): void => {
+  writeNumericStorage(DRIVE_LAST_PUSH_AT_STORAGE_KEY, timestamp);
+};
+
+export const getDriveLastPullAt = (): number | null =>
+  readNumericStorage(DRIVE_LAST_PULL_AT_STORAGE_KEY);
+
+export const setDriveLastPullAt = (timestamp: number): void => {
+  writeNumericStorage(DRIVE_LAST_PULL_AT_STORAGE_KEY, timestamp);
+};
+
+export const getDriveRemoteManifestAt = (): number | null =>
+  readNumericStorage(DRIVE_REMOTE_MANIFEST_AT_STORAGE_KEY);
+
+export const setDriveRemoteManifestAt = (timestamp: number): void => {
+  writeNumericStorage(DRIVE_REMOTE_MANIFEST_AT_STORAGE_KEY, timestamp);
+};
+
+export const getDriveLastPushRevision = (): number =>
+  readNumericStorage(DRIVE_LAST_PUSH_REVISION_STORAGE_KEY) ?? 0;
+
+export const setDriveLastPushRevision = (revision: number): void => {
+  writeNumericStorage(DRIVE_LAST_PUSH_REVISION_STORAGE_KEY, revision);
+};
+
+export const getVaultContentRevision = (): number =>
+  readNumericStorage(VAULT_CONTENT_REVISION_STORAGE_KEY) ?? 0;
+
+export const incrementVaultContentRevision = (): number => {
+  const next = getVaultContentRevision() + 1;
+  writeNumericStorage(VAULT_CONTENT_REVISION_STORAGE_KEY, next);
+  return next;
 };

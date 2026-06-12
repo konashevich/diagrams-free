@@ -1,0 +1,16 @@
+.drive-sync-button {
+  &--stale,
+  &--updates_available {
+    --button-bg: var(--color-primary-light);
+    color: var(--color-primary);
+  }
+
+  &--syncing {
+    opacity: 0.65;
+    pointer-events: none;
+  }
+
+  &--paused {
+    opacity: 0.5;
+  }
+}

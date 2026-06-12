@@ -2,15 +2,22 @@ export {
   DEFAULT_DRIVE_ROOT_FOLDER,
   DRIVE_FILE_SCOPE,
   DRIVE_OAUTH_SCOPES,
+  getDriveLastPullAt,
+  getDriveLastPushAt,
   getDriveLastSyncAt,
+  getDriveRemoteManifestAt,
   getDriveRootFolderName,
   getGoogleApiKey,
   getGoogleClientId,
   getGoogleOAuthProxyUrl,
+  getVaultContentRevision,
   isDriveAutoSyncEnabled,
   isGoogleDriveEnabled,
   setDriveAutoSyncEnabled,
+  setDriveLastPullAt,
+  setDriveLastPushAt,
   setDriveLastSyncAt,
+  setDriveRemoteManifestAt,
 } from "./constants";
 
 export type {
@@ -18,7 +25,9 @@ export type {
   DriveFolderIds,
   DriveManifest,
   DriveManifestSceneEntry,
+  DriveMergeResult,
   DriveSyncResult,
+  DriveSyncStatus,
 } from "./types";
 
 export {
@@ -67,6 +76,19 @@ export {
 } from "./DriveSyncService";
 
 export {
+  DriveMergeService,
+  driveMergeService,
+} from "./DriveMergeService";
+export type { DriveMergeOptions } from "./DriveMergeService";
+
+export {
+  computeDriveSyncStatus,
+  getCachedRemoteManifestAt,
+  invalidateDriveRemoteManifestCache,
+  peekDriveRemoteManifest,
+} from "./driveSyncStatus";
+
+export {
   DriveShareService,
   driveShareService,
 } from "./DriveShareService";
@@ -83,7 +105,10 @@ export {
 
 export {
   driveAutoSyncFailToastMessage,
+  formatDriveMergeSuccessMessage,
+  notifyDriveAutoMergeSuccess,
   notifyDriveAutoSyncFailed,
+  registerDriveAutoMergeSuccessNotifier,
   registerDriveAutoSyncNotifier,
 } from "./driveAutoSyncNotify";
 

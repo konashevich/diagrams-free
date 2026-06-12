@@ -72,7 +72,8 @@ export const ShareableLinkDialog = ({
           />
         </div>
         <div className="ShareableLinkDialog__description">
-          🔒 {t("alerts.uploadedSecurly")}
+          Snapshot link — recipients open a copy. Edits they make stay in their
+          browser only and are not synced back to you.
         </div>
       </div>
     </Dialog>

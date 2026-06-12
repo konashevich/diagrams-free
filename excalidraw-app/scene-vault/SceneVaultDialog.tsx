@@ -43,6 +43,8 @@ type Props = {
   excalidrawAPI: ExcalidrawImperativeAPI;
   activeSceneId: string | null;
   onScenesChange: () => void;
+  confirmActiveSceneReload?: () => Promise<boolean>;
+  onDriveMergeSuccess?: (message: string) => void;
 };
 
 const formatUpdatedAt = (timestamp: number): string => {
@@ -180,6 +182,8 @@ export const SceneVaultDialog = ({
   excalidrawAPI,
   activeSceneId,
   onScenesChange,
+  confirmActiveSceneReload,
+  onDriveMergeSuccess,
 }: Props) => {
   const [scenes, setScenes] = useState<VaultSceneMeta[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<VaultSceneMeta | null>(null);
@@ -323,6 +327,8 @@ export const SceneVaultDialog = ({
         <GoogleDrivePanel
           excalidrawAPI={excalidrawAPI}
           disabled={busy}
+          confirmActiveSceneReload={confirmActiveSceneReload}
+          onMergeSuccess={onDriveMergeSuccess}
           onSyncComplete={() => {
             void refreshList();
             onScenesChange();

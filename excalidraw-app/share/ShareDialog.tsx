@@ -234,10 +234,10 @@ const DriveShareSection = ({
         {t("exportDialog.link_title")}
       </div>
       <div className="ShareDialog__picker__description">
-        Creates an <strong>anyone with the link</strong> URL on{" "}
-        <strong>diagrams.free</strong>. The file is stored in your Google Drive
-        under <code>diagrams.free/</code>. To restrict access to specific
-        people, change sharing on that file in{" "}
+        Creates a <strong>snapshot link</strong> — not live collaboration.
+        Recipients get a copy; your later edits will not sync to them. The file
+        is stored in your Google Drive under <code>diagrams.free/shared/</code>.
+        To restrict access to specific people, change sharing on that file in{" "}
         <a
           href="https://drive.google.com"
           target="_blank"

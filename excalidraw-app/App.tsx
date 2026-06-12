@@ -100,8 +100,11 @@ import Collab, {
 import { AppFooter } from "./components/AppFooter";
 import { AppMainMenu } from "./components/AppMainMenu";
 import { AppWelcomeScreen } from "./components/AppWelcomeScreen";
+import { DriveSyncButton } from "./components/DriveSyncButton";
 import { SaveToBrowserOverwriteAction } from "./components/SaveToBrowserOverwriteAction";
+import { SharedSceneBanner } from "./components/SharedSceneBanner";
 import { TopErrorBoundary } from "./components/TopErrorBoundary";
+import { useDriveAutoMerge } from "./components/useDriveAutoMerge";
 
 import {
   exportToBackend,
@@ -158,9 +161,11 @@ import { CONTACT_US_OPEN_EVENT } from "./contact/openContactUs";
 import {
   driveShareService,
   driveAutoSyncFailToastMessage,
+  formatDriveMergeSuccessMessage,
   initDriveAuth,
   isGoogleDriveEnabled,
   parseShareFileIdFromLocation,
+  registerDriveAutoMergeSuccessNotifier,
   registerDriveAutoSyncNotifier,
 } from "./google-drive";
 import {
@@ -570,6 +575,7 @@ const ExcalidrawWrapper = () => {
   useEffect(() => {
     if (!excalidrawAPI || !isGoogleDriveEnabled()) {
       registerDriveAutoSyncNotifier(null);
+      registerDriveAutoMergeSuccessNotifier(null);
       return;
     }
     registerDriveAutoSyncNotifier(() => {
@@ -579,7 +585,17 @@ const ExcalidrawWrapper = () => {
         duration: 6000,
       });
     });
-    return () => registerDriveAutoSyncNotifier(null);
+    registerDriveAutoMergeSuccessNotifier((result) => {
+      excalidrawAPI.setToast({
+        message: formatDriveMergeSuccessMessage(result),
+        closable: true,
+        duration: 5000,
+      });
+    });
+    return () => {
+      registerDriveAutoSyncNotifier(null);
+      registerDriveAutoMergeSuccessNotifier(null);
+    };
   }, [excalidrawAPI]);
 
   const [activeVaultSceneId, setActiveVaultSceneId] = useState<string | null>(
@@ -600,6 +616,22 @@ const ExcalidrawWrapper = () => {
     !isRunningInIframe() &&
     !isCollaborating &&
     !isExternalVaultScene;
+
+  const confirmActiveSceneReload = useCallback(async () => {
+    return openConfirmModal({
+      title: "Reload scene from Google Drive?",
+      description:
+        "Google Drive has a newer version of this scene. Reload it and replace what you see on the canvas?",
+      actionLabel: "Reload from Drive",
+      color: "warning",
+    });
+  }, []);
+
+  useDriveAutoMerge({
+    excalidrawAPI,
+    enabled: sceneVaultEnabled && isGoogleDriveEnabled(),
+    confirmActiveSceneReload,
+  });
 
   useEffect(() => {
     setVaultOperationContext({
@@ -1176,12 +1208,30 @@ const ExcalidrawWrapper = () => {
           if (isMobile) {
             return null;
           }
-          if (isCollabDisabled && !isDriveShareEnabled) {
+          const driveSyncButton =
+            isGoogleDriveEnabled() && excalidrawAPI && sceneVaultEnabled ? (
+              <DriveSyncButton
+                excalidrawAPI={excalidrawAPI}
+                confirmActiveSceneReload={confirmActiveSceneReload}
+                onError={(message) => setErrorMessage(message)}
+                onSuccess={(message) => {
+                  excalidrawAPI.setToast({
+                    message,
+                    duration: 5000,
+                    closable: true,
+                  });
+                  refreshActiveVaultSceneId();
+                }}
+              />
+            ) : null;
+
+          if (isCollabDisabled && !isDriveShareEnabled && !driveSyncButton) {
             return null;
           }
           if (isCollabDisabled && isDriveShareEnabled) {
             return (
               <div className="excalidraw-ui-top-right">
+                {driveSyncButton}
                 <LiveCollaborationTrigger
                   isCollaborating={false}
                   onSelect={() =>
@@ -1193,11 +1243,14 @@ const ExcalidrawWrapper = () => {
             );
           }
           if (!collabAPI) {
-            return null;
+            return driveSyncButton ? (
+              <div className="excalidraw-ui-top-right">{driveSyncButton}</div>
+            ) : null;
           }
 
           return (
             <div className="excalidraw-ui-top-right">
+              {driveSyncButton}
               {collabError.message && <CollabError collabError={collabError} />}
               <LiveCollaborationTrigger
                 isCollaborating={isCollaborating}
@@ -1300,6 +1353,19 @@ const ExcalidrawWrapper = () => {
             saved drawings and free space.
           </div>
         )}
+        {excalidrawAPI && isExternalVaultScene && (
+          <SharedSceneBanner
+            excalidrawAPI={excalidrawAPI}
+            onSavedToVault={() => {
+              setIsExternalVaultScene(false);
+              refreshActiveVaultSceneId();
+              excalidrawAPI.setToast({
+                message: "Saved to My scenes.",
+                duration: 4000,
+              });
+            }}
+          />
+        )}
         {latestShareableLink && (
           <ShareableLinkDialog
             link={latestShareableLink}
@@ -1336,6 +1402,14 @@ const ExcalidrawWrapper = () => {
               excalidrawAPI={excalidrawAPI}
               activeSceneId={activeVaultSceneId}
               onScenesChange={refreshActiveVaultSceneId}
+              confirmActiveSceneReload={confirmActiveSceneReload}
+              onDriveMergeSuccess={(message) => {
+                excalidrawAPI.setToast({
+                  message,
+                  duration: 5000,
+                  closable: true,
+                });
+              }}
             />
             <SceneVaultClearCanvasDialog
               enabled={sceneVaultEnabled}

@@ -230,4 +230,17 @@ describe("SceneVaultService", () => {
     expect(await store.getActiveSceneId()).toBeNull();
     expect(await store.listScenes()).toHaveLength(0);
   });
+
+  it("saveCanvasToVault imports the current canvas as a new vault scene", async () => {
+    const api = makeAPI({
+      elements: [{ ...rectangleFixture }],
+      appState: {},
+      files: {},
+    });
+
+    const scene = await service.saveCanvasToVault(api, "Shared copy");
+    expect(scene.title).toBe("Shared copy");
+    expect(await store.getActiveSceneId()).toBe(scene.id);
+    expect(await store.listScenes()).toHaveLength(1);
+  });
 });

@@ -1,3 +1,5 @@
+import { incrementVaultContentRevision } from "../google-drive/constants";
+
 import { appJotaiStore } from "../app-jotai";
 
 import { VAULT_BROADCAST_CHANNEL } from "./constants";
@@ -26,6 +28,7 @@ const postVaultUpdated = (): void => {
 };
 
 export const notifyVaultChanged = (): void => {
+  incrementVaultContentRevision();
   appJotaiStore.set(sceneVaultListRevisionAtom, (revision) => revision + 1);
   postVaultUpdated();
 };

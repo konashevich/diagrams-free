@@ -8,7 +8,7 @@ import {
   createEmptyManifest,
   ensureDriveFolderStructure,
   findManifestFileId,
-  flatDriveSyncLocation,
+  nestedDriveSyncLocation,
   readDriveManifest,
   resolveDriveSyncLocation,
   uploadVaultSceneFile,
@@ -16,76 +16,93 @@ import {
   writeDriveManifest,
   downloadFileText,
 } from "./api";
+import {
+  getVaultContentRevision,
+  setDriveLastPushAt,
+  setDriveLastPushRevision,
+  setDriveLastSyncAt,
+  setDriveRemoteManifestAt,
+} from "./constants";
+import { runDriveIoSerialized } from "./driveIoLock";
+import { invalidateDriveRemoteManifestCache } from "./driveSyncStatus";
 import { getAccessToken, isGoogleDriveLinked } from "./auth";
 import { DriveAuthError, DriveNotConfiguredError } from "./errors";
 
 import type { DriveManifest, DriveSyncResult } from "./types";
 
-export class DriveSyncService {
-  /** Serialize backups so overlapping auto-sync / flush calls cannot race. */
-  private backupTail: Promise<unknown> = Promise.resolve();
+export type DrivePullResult = {
+  restoredScenes: number;
+  pulledSceneIds: string[];
+  remoteManifestUpdatedAt: number | null;
+};
 
+export type DrivePullPushResult = {
+  pull: DrivePullResult;
+  push: DriveSyncResult;
+};
+
+export class DriveSyncService {
   private assertReady(): void {
     if (!isGoogleDriveLinked()) {
       throw new DriveAuthError("Sign in with Google first.");
     }
     if (!getAccessToken()) {
       throw new DriveAuthError(
-        "Google sign-in expired. Use Backup now or Sign in with Google.",
+        "Google sign-in expired. Use Sync now or Sign in with Google.",
       );
     }
   }
 
   async backupVaultToDrive(): Promise<DriveSyncResult> {
     this.assertReady();
-
-    const resultPromise = this.backupTail.then(() =>
+    return runDriveIoSerialized(() =>
       withDriveFolderRetry(() => this.backupVaultToDriveInner()),
     );
-    this.backupTail = resultPromise.then(
-      () => undefined,
-      () => undefined,
-    );
-    return resultPromise;
   }
 
   private async backupVaultToDriveInner(): Promise<DriveSyncResult> {
     const folders = await ensureDriveFolderStructure();
-    const syncLocation = flatDriveSyncLocation(folders);
-    const legacyLocation = await resolveDriveSyncLocation(folders);
+    const writeLocation = nestedDriveSyncLocation(folders);
+    const readLocation = await resolveDriveSyncLocation(folders);
     const scenes = await sceneVaultStore.listScenes();
 
     let existingManifest = await readDriveManifest(
-      syncLocation.manifestFolderId,
+      writeLocation.manifestFolderId,
     );
     if (
       !existingManifest &&
-      legacyLocation.manifestFolderId !== syncLocation.manifestFolderId
+      readLocation.manifestFolderId !== writeLocation.manifestFolderId
     ) {
       existingManifest = await readDriveManifest(
-        legacyLocation.manifestFolderId,
+        readLocation.manifestFolderId,
       );
     }
     existingManifest ??= createEmptyManifest();
 
     const manifestFileId = await findManifestFileId(
-      syncLocation.manifestFolderId,
+      writeLocation.manifestFolderId,
     );
 
     const existingById = new Map(
       existingManifest.scenes.map((entry) => [entry.id, entry]),
     );
     const manifestById = new Map<string, (typeof existingManifest.scenes)[0]>();
+    const localIds = new Set(scenes.map((meta) => meta.id));
+    let uploadedScenes = 0;
 
     for (const meta of scenes) {
       const scene = await sceneVaultStore.getScene(meta.id);
       if (!scene) {
         continue;
       }
-      const content = serializeVaultSceneForDownload(scene);
       const previous = existingById.get(meta.id);
+      if (previous && previous.updatedAt >= meta.updatedAt) {
+        manifestById.set(meta.id, previous);
+        continue;
+      }
+      const content = serializeVaultSceneForDownload(scene);
       const driveFileId = await uploadVaultSceneFile({
-        scenesFolderId: syncLocation.scenesFolderId,
+        scenesFolderId: writeLocation.scenesFolderId,
         sceneId: meta.id,
         content,
         existingFileId: previous?.driveFileId,
@@ -96,44 +113,58 @@ export class DriveSyncService {
         updatedAt: meta.updatedAt,
         driveFileId,
       });
+      uploadedScenes += 1;
     }
 
     const nextManifest = {
       version: existingManifest.version,
       updatedAt: Date.now(),
-      scenes: [...manifestById.values()].sort(
-        (a, b) => b.updatedAt - a.updatedAt,
-      ),
+      scenes: [...manifestById.values()]
+        .filter((entry) => localIds.has(entry.id))
+        .sort((a, b) => b.updatedAt - a.updatedAt),
     };
 
     await writeDriveManifest(
-      syncLocation.manifestFolderId,
+      writeLocation.manifestFolderId,
       nextManifest,
       manifestFileId,
     );
 
+    const syncedAt = nextManifest.updatedAt;
+    setDriveLastSyncAt(syncedAt);
+    setDriveLastPushAt(syncedAt);
+    setDriveRemoteManifestAt(syncedAt);
+    invalidateDriveRemoteManifestCache();
+    setDriveLastPushRevision(getVaultContentRevision());
+
     return {
-      uploadedScenes: scenes.length,
+      uploadedScenes,
       restoredScenes: 0,
-      syncedAt: nextManifest.updatedAt,
+      syncedAt,
     };
   }
 
-  async restoreVaultFromDrive(): Promise<DriveSyncResult> {
+  async pullVaultFromDrive(): Promise<DrivePullResult> {
     this.assertReady();
-
-    return withDriveFolderRetry(() => this.restoreVaultFromDriveInner());
+    return runDriveIoSerialized(() =>
+      withDriveFolderRetry(() => this.pullVaultFromDriveInner()),
+    );
   }
 
-  private async restoreVaultFromDriveInner(): Promise<DriveSyncResult> {
+  private async pullVaultFromDriveInner(): Promise<DrivePullResult> {
     const folders = await ensureDriveFolderStructure();
-    const syncLocation = await resolveDriveSyncLocation(folders);
-    const manifest = await readDriveManifest(syncLocation.manifestFolderId);
+    const readLocation = await resolveDriveSyncLocation(folders);
+    const manifest = await readDriveManifest(readLocation.manifestFolderId);
     if (!manifest?.scenes.length) {
-      return { uploadedScenes: 0, restoredScenes: 0, syncedAt: Date.now() };
+      return {
+        restoredScenes: 0,
+        pulledSceneIds: [],
+        remoteManifestUpdatedAt: manifest?.updatedAt ?? null,
+      };
     }
 
     let restoredScenes = 0;
+    const pulledSceneIds: string[] = [];
 
     for (const entry of manifest.scenes) {
       const local = await sceneVaultStore.getScene(entry.id);
@@ -157,11 +188,36 @@ export class DriveSyncService {
       });
       await sceneVaultStore.upsertScene(scene);
       restoredScenes += 1;
+      pulledSceneIds.push(entry.id);
     }
 
     return {
-      uploadedScenes: 0,
       restoredScenes,
+      pulledSceneIds,
+      remoteManifestUpdatedAt: manifest.updatedAt,
+    };
+  }
+
+  /** Pull then push under a single Drive I/O lock (for merge). */
+  async pullAndPushVault(): Promise<DrivePullPushResult> {
+    this.assertReady();
+    return runDriveIoSerialized(async () => {
+      const pull = await withDriveFolderRetry(() =>
+        this.pullVaultFromDriveInner(),
+      );
+      const push = await withDriveFolderRetry(() =>
+        this.backupVaultToDriveInner(),
+      );
+      return { pull, push };
+    });
+  }
+
+  /** @deprecated Use pullVaultFromDrive or mergeVaultWithDrive. */
+  async restoreVaultFromDrive(): Promise<DriveSyncResult> {
+    const pull = await this.pullVaultFromDrive();
+    return {
+      uploadedScenes: 0,
+      restoredScenes: pull.restoredScenes,
       syncedAt: Date.now(),
     };
   }

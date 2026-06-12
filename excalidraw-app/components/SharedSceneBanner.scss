@@ -1,0 +1,26 @@
+.shared-scene-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin: 0.5rem 1rem;
+  padding: 0.65rem 1rem;
+  border-radius: var(--border-radius-lg);
+  background: var(--island-bg-color);
+  border: 1px solid var(--color-primary);
+  box-shadow: var(--shadow-island);
+
+  &__text {
+    flex: 1 1 16rem;
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.4;
+  }
+
+  &__error {
+    flex: 1 1 100%;
+    margin: 0;
+    color: var(--color-danger);
+    font-size: 0.8125rem;
+  }
+}

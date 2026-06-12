@@ -223,6 +223,21 @@ export class SceneVaultService {
     });
   }
 
+  /** Import the current canvas into the vault (e.g. from a shared link scene). */
+  async saveCanvasToVault(
+    api: ExcalidrawImperativeAPI,
+    title?: string,
+  ): Promise<VaultScene> {
+    const payload = captureSceneFromAPICloned(api);
+    const scene = await this.store.createScene({
+      title: title?.trim() || undefined,
+      payload,
+    });
+    await this.store.setActiveSceneId(scene.id);
+    LocalData.flushSave();
+    return scene;
+  }
+
   /**
    * Persists the active editor state into the vault entry for {@link activeSceneId}.
    * Creates a new vault entry when the canvas becomes non-empty and none is active.

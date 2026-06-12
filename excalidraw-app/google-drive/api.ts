@@ -14,6 +14,7 @@ import {
   DRIVE_APP_FOLDER,
   DRIVE_MANIFEST_FILENAME,
   DRIVE_SCENES_FOLDER,
+  DRIVE_SHARED_FOLDER,
   DRIVE_VAULT_FOLDER,
   driveSceneFilename,
 } from "./paths";
@@ -157,18 +158,47 @@ const ensureRootFolder = async (): Promise<string> => {
   return createFolder(rootName, "root");
 };
 
+const isCompleteFolderIds = (ids: DriveFolderIds | null): ids is DriveFolderIds =>
+  !!ids?.rootId && !!ids.vaultId && !!ids.scenesId && !!ids.sharedId;
+
 const buildDriveFolderStructure = async (): Promise<DriveFolderIds> => {
   const rootId = await ensureRootFolder();
-  const ids: DriveFolderIds = { rootId };
+  const vaultId = await ensureChildFolder(rootId, DRIVE_VAULT_FOLDER);
+  const scenesId = await ensureChildFolder(vaultId, DRIVE_SCENES_FOLDER);
+  const sharedId = await ensureChildFolder(rootId, DRIVE_SHARED_FOLDER);
+  const ids: DriveFolderIds = { rootId, vaultId, scenesId, sharedId };
   writeFolderCache(ids);
   return ids;
 };
 
-/** Read location for existing backups (flat root or legacy vault/scenes folders). */
+/** Preferred write location: nested vault/scenes. */
+export const nestedDriveSyncLocation = (
+  folders: DriveFolderIds,
+): DriveSyncLocation => ({
+  manifestFolderId: folders.vaultId,
+  scenesFolderId: folders.scenesId,
+});
+
+/** @deprecated Use nestedDriveSyncLocation for writes. */
+export const flatDriveSyncLocation = (
+  folders: DriveFolderIds,
+): DriveSyncLocation => nestedDriveSyncLocation(folders);
+
+/** Read location for existing backups (nested, flat root, or legacy vault/scenes). */
 export const resolveDriveSyncLocation = async (
   folders: DriveFolderIds,
 ): Promise<DriveSyncLocation> => {
-  const { rootId } = folders;
+  const { rootId, vaultId, scenesId } = folders;
+
+  if (
+    vaultId &&
+    (await findFileInParent(vaultId, DRIVE_MANIFEST_FILENAME))
+  ) {
+    return {
+      manifestFolderId: vaultId,
+      scenesFolderId: scenesId ?? vaultId,
+    };
+  }
 
   if (await findFileInParent(rootId, DRIVE_MANIFEST_FILENAME)) {
     return { manifestFolderId: rootId, scenesFolderId: rootId };
@@ -177,30 +207,32 @@ export const resolveDriveSyncLocation = async (
   const legacyVaultId = await findChildFolder(rootId, DRIVE_VAULT_FOLDER);
   if (
     legacyVaultId &&
+    legacyVaultId !== vaultId &&
     (await findFileInParent(legacyVaultId, DRIVE_MANIFEST_FILENAME))
   ) {
-    const scenesFolderId =
+    const legacyScenesId =
       (await findChildFolder(legacyVaultId, DRIVE_SCENES_FOLDER)) ??
       legacyVaultId;
-    return { manifestFolderId: legacyVaultId, scenesFolderId };
+    return { manifestFolderId: legacyVaultId, scenesFolderId: legacyScenesId };
   }
 
-  return { manifestFolderId: rootId, scenesFolderId: rootId };
+  return nestedDriveSyncLocation(folders);
 };
-
-export const flatDriveSyncLocation = (
-  folders: DriveFolderIds,
-): DriveSyncLocation => ({
-  manifestFolderId: folders.rootId,
-  scenesFolderId: folders.rootId,
-});
 
 export const ensureDriveFolderStructure = async (): Promise<DriveFolderIds> => {
   const cached = readFolderCache();
-  if (cached) {
+  if (isCompleteFolderIds(cached)) {
     return cached;
   }
   return buildDriveFolderStructure();
+};
+
+/** Remote manifest timestamp without downloading scene files. */
+export const peekRemoteManifestUpdatedAt = async (): Promise<number | null> => {
+  const folders = await ensureDriveFolderStructure();
+  const readLocation = await resolveDriveSyncLocation(folders);
+  const manifest = await readDriveManifest(readLocation.manifestFolderId);
+  return manifest?.updatedAt ?? null;
 };
 
 /** Retry once after clearing stale folder cache (404 from Drive API). */

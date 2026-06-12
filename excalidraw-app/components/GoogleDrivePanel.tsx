@@ -6,16 +6,16 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
 import { syncDonateReminderWithDrive } from "../donate/reminder/donateReminderService";
 import { isDonateEnabled } from "../donate/donateConfig";
-import { flushVaultSync } from "../scene-vault/vaultSync";
-import { useDriveSessionMonitor } from "./useDriveSessionMonitor";
-
 import {
+  driveMergeService,
   driveSyncService,
   driveAccessRefreshFailedMessage,
+  formatDriveMergeSuccessMessage,
+  getDriveLastPullAt,
+  getDriveLastPushAt,
   getDriveLastSyncAt,
   getGoogleAccountEmail,
   hasValidAccessToken,
-  initDriveAuth,
   warmDriveAccessToken,
   isDriveAccessRefreshError,
   isDriveAutoSyncEnabled,
@@ -27,11 +27,15 @@ import {
   signOutFromGoogle,
   withDriveAccess,
 } from "../google-drive";
+import { useDriveSessionMonitor } from "./useDriveSessionMonitor";
+import { runDriveMergeNow } from "./useDriveAutoMerge";
 
 type Props = {
   excalidrawAPI: ExcalidrawImperativeAPI;
   disabled?: boolean;
   onSyncComplete: () => void;
+  confirmActiveSceneReload?: () => Promise<boolean>;
+  onMergeSuccess?: (message: string) => void;
 };
 
 const formatSyncTime = (timestamp: number | null): string => {
@@ -49,14 +53,19 @@ export const GoogleDrivePanel = ({
   excalidrawAPI,
   disabled,
   onSyncComplete,
+  confirmActiveSceneReload,
+  onMergeSuccess,
 }: Props) => {
   const [signedIn, setSignedIn] = useState(isSignedInToGoogle());
   const [sessionReady, setSessionReady] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastSyncAt, setLastSyncAt] = useState<number | null>(() =>
-    getDriveLastSyncAt(),
+  const [lastPushAt, setLastPushAt] = useState<number | null>(() =>
+    getDriveLastPushAt(),
+  );
+  const [lastPullAt, setLastPullAt] = useState<number | null>(() =>
+    getDriveLastPullAt(),
   );
   const [autoSync, setAutoSync] = useState(isDriveAutoSyncEnabled());
 
@@ -65,6 +74,11 @@ export const GoogleDrivePanel = ({
   }, []);
 
   useDriveSessionMonitor(onSessionReadyChange);
+
+  const refreshTimestamps = useCallback(() => {
+    setLastPushAt(getDriveLastPushAt() ?? getDriveLastSyncAt());
+    setLastPullAt(getDriveLastPullAt());
+  }, []);
 
   const refreshAccount = useCallback(async () => {
     if (!isSignedInToGoogle()) {
@@ -78,7 +92,8 @@ export const GoogleDrivePanel = ({
     setSessionReady(hasValidAccessToken());
     const accountEmail = await getGoogleAccountEmail();
     setEmail(accountEmail ?? null);
-  }, []);
+    refreshTimestamps();
+  }, [refreshTimestamps]);
 
   useEffect(() => {
     if (!isGoogleDriveEnabled()) {
@@ -91,15 +106,30 @@ export const GoogleDrivePanel = ({
     return null;
   }
 
-  const run = async (action: () => Promise<{ syncedAt: number }>) => {
+  const applyMergeResult = (syncedAt: number, message?: string) => {
+    setLastPushAt(syncedAt);
+    setLastPullAt(syncedAt);
+    setDriveLastSyncAt(syncedAt);
+    refreshTimestamps();
+    onSyncComplete();
+    if (message) {
+      onMergeSuccess?.(message);
+    }
+  };
+
+  const runMerge = async () => {
     setBusy(true);
     setError(null);
     try {
-      const result = await withDriveAccess(action);
+      const result = await runDriveMergeNow(
+        excalidrawAPI,
+        confirmActiveSceneReload,
+      );
       setSessionReady(true);
-      setLastSyncAt(result.syncedAt);
-      setDriveLastSyncAt(result.syncedAt);
-      onSyncComplete();
+      applyMergeResult(
+        result.syncedAt,
+        formatDriveMergeSuccessMessage(result),
+      );
     } catch (err) {
       console.error("[google-drive]", err);
       if (isDriveAccessRefreshError(err)) {
@@ -108,6 +138,32 @@ export const GoogleDrivePanel = ({
       } else {
         setError(
           err instanceof Error ? err.message : "Google Drive sync failed.",
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runBackupOnly = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await withDriveAccess(async () => {
+        const { flushVaultSync } = await import("../scene-vault/vaultSync");
+        await flushVaultSync(excalidrawAPI, { skipDrive: true });
+        return driveSyncService.backupVaultToDrive();
+      });
+      setSessionReady(true);
+      applyMergeResult(result.syncedAt);
+    } catch (err) {
+      console.error("[google-drive]", err);
+      if (isDriveAccessRefreshError(err)) {
+        setSessionReady(false);
+        setError(driveAccessRefreshFailedMessage);
+      } else {
+        setError(
+          err instanceof Error ? err.message : "Google Drive backup failed.",
         );
       }
     } finally {
@@ -126,6 +182,16 @@ export const GoogleDrivePanel = ({
       if (isDonateEnabled()) {
         void syncDonateReminderWithDrive();
       }
+      const result = await withDriveAccess(() =>
+        driveMergeService.mergeVaultWithDrive({
+          excalidrawAPI,
+          confirmActiveSceneReload,
+        }),
+      );
+      applyMergeResult(
+        result.syncedAt,
+        formatDriveMergeSuccessMessage(result),
+      );
     } catch (err) {
       console.error("[google-drive]", err);
       setError(err instanceof Error ? err.message : "Google sign-in failed.");
@@ -159,17 +225,6 @@ export const GoogleDrivePanel = ({
     });
   };
 
-  const handleBackup = () => {
-    void run(async () => {
-      await flushVaultSync(excalidrawAPI, { skipDrive: true });
-      return driveSyncService.backupVaultToDrive();
-    });
-  };
-
-  const handleRestore = () => {
-    void run(async () => driveSyncService.restoreVaultFromDrive());
-  };
-
   const isDisabled = disabled || busy;
   const autoSyncPaused = signedIn && !sessionReady;
 
@@ -177,16 +232,16 @@ export const GoogleDrivePanel = ({
     <section className="scene-vault-dialog__drive" aria-label="Google Drive backup">
       <h3 className="scene-vault-dialog__drive-title">Google Drive</h3>
       <p className="scene-vault-dialog__drive-hint">
-        Back up My scenes to your Google Drive under{" "}
-        <code>diagrams.free/</code>. Same Google account on another device can
-        restore them.
+        Back up and merge <strong>My scenes</strong> with your Google Drive
+        under <code>diagrams.free/vault/</code>. Changes on another device
+        appear after you sync or return to this tab.
       </p>
 
       {signedIn ? (
         <p className="scene-vault-dialog__drive-account">
           Connected{email ? ` as ${email}` : ""}
           {!sessionReady
-            ? " — Google may ask you to confirm when you back up or share"
+            ? " — Google may ask you to confirm when you sync or share"
             : ""}
         </p>
       ) : (
@@ -200,7 +255,10 @@ export const GoogleDrivePanel = ({
       ) : null}
 
       <p className="scene-vault-dialog__drive-meta">
-        Last sync: {formatSyncTime(lastSyncAt)}
+        Last backed up to Drive: {formatSyncTime(lastPushAt)}
+      </p>
+      <p className="scene-vault-dialog__drive-meta">
+        Last merged from Drive: {formatSyncTime(lastPullAt)}
       </p>
 
       {signedIn ? (
@@ -216,12 +274,12 @@ export const GoogleDrivePanel = ({
                 setDriveAutoSyncEnabled(enabled);
               }}
             />
-            Auto-sync My scenes to Drive after edits
+            Automatically back up to Drive after edits
           </label>
           {autoSyncPaused ? (
             <>
               <p className="scene-vault-dialog__drive-hint">
-                Auto-sync is paused until you back up once to refresh Google
+                Auto-backup is paused until you sync once to refresh Google
                 access.
               </p>
               <DialogActionButton
@@ -244,13 +302,13 @@ export const GoogleDrivePanel = ({
         ) : (
           <>
             <DialogActionButton
-              label="Backup now"
-              onClick={handleBackup}
+              label="Sync now"
+              onClick={() => void runMerge()}
               disabled={isDisabled}
             />
             <DialogActionButton
-              label="Restore from Drive"
-              onClick={handleRestore}
+              label="Back up only"
+              onClick={() => void runBackupOnly()}
               disabled={isDisabled}
             />
             <DialogActionButton
