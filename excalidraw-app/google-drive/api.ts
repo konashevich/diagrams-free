@@ -121,8 +121,10 @@ const findChildFolder = async (
   const q = encodeURIComponent(
     `'${parentId}' in parents and name='${name.replace(/'/g, "\\'")}' and mimeType='${FOLDER_MIME}' and trashed=false`,
   );
+  // orderBy=createdTime so all clients converge on the oldest folder when
+  // duplicates exist (recovery from any prior duplicate-creation race).
   const response = await driveFetch(
-    `/files?q=${q}&fields=files(id,name)&pageSize=1&spaces=drive`,
+    `/files?q=${q}&fields=files(id,name)&orderBy=createdTime&pageSize=10&spaces=drive`,
   );
   const data = (await response.json()) as { files?: { id: string }[] };
   return data.files?.[0]?.id ?? null;
@@ -149,8 +151,10 @@ const ensureRootFolder = async (): Promise<string> => {
   const q = encodeURIComponent(
     `name='${rootName.replace(/'/g, "\\'")}' and mimeType='${FOLDER_MIME}' and trashed=false and 'root' in parents`,
   );
+  // orderBy=createdTime: if duplicate roots exist, every client deterministically
+  // picks the oldest one instead of forking a new folder.
   const response = await driveFetch(
-    `/files?q=${q}&fields=files(id,name)&pageSize=1&spaces=drive`,
+    `/files?q=${q}&fields=files(id,name)&orderBy=createdTime&pageSize=10&spaces=drive`,
   );
   const data = (await response.json()) as { files?: { id: string }[] };
   if (data.files?.[0]?.id) {
@@ -284,12 +288,24 @@ export const readMergedDriveManifest = async (
   return mergeDriveManifests(...candidates.map((candidate) => candidate.manifest));
 };
 
+/**
+ * Single-flight guard: concurrent callers (sign-in merge, status peek, donate
+ * sync, auto-merge) must share one folder build, otherwise each races to create
+ * its own `diagrams.free` root and we get duplicate folders on first auth.
+ */
+let folderStructurePromise: Promise<DriveFolderIds> | null = null;
+
 export const ensureDriveFolderStructure = async (): Promise<DriveFolderIds> => {
   const cached = readFolderCache();
   if (isCompleteFolderIds(cached)) {
     return cached;
   }
-  return buildDriveFolderStructure();
+  if (!folderStructurePromise) {
+    folderStructurePromise = buildDriveFolderStructure().finally(() => {
+      folderStructurePromise = null;
+    });
+  }
+  return folderStructurePromise;
 };
 
 /** Remote manifest timestamp without downloading scene files. */
