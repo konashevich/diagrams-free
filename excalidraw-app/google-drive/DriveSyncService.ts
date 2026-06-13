@@ -11,7 +11,7 @@ import {
   findSceneFileInFolder,
   nestedDriveSyncLocation,
   readDriveManifest,
-  resolveDriveSyncLocation,
+  readMergedDriveManifest,
   uploadVaultSceneFile,
   withDriveFolderRetry,
   writeDriveManifest,
@@ -20,7 +20,6 @@ import {
 import {
   manifestScenesEqual,
   manifestScenesForLocalIds,
-  mergeDriveManifests,
 } from "./driveManifest";
 import { cleanupDriveVaultOrphans } from "./driveGarbageCollect";
 import {
@@ -70,18 +69,13 @@ export class DriveSyncService {
   private async backupVaultToDriveInner(): Promise<DriveSyncResult> {
     const folders = await ensureDriveFolderStructure();
     const writeLocation = nestedDriveSyncLocation(folders);
-    const readLocation = await resolveDriveSyncLocation(folders);
     const scenes = await sceneVaultStore.listScenes();
 
     const writeManifest = await readDriveManifest(
       writeLocation.manifestFolderId,
     );
-    const readManifest =
-      readLocation.manifestFolderId !== writeLocation.manifestFolderId
-        ? await readDriveManifest(readLocation.manifestFolderId)
-        : null;
     const existingManifest =
-      mergeDriveManifests(writeManifest, readManifest) ?? createEmptyManifest();
+      (await readMergedDriveManifest(folders)) ?? createEmptyManifest();
 
     const manifestFileId = await findManifestFileId(
       writeLocation.manifestFolderId,
@@ -190,8 +184,7 @@ export class DriveSyncService {
 
   private async pullVaultFromDriveInner(): Promise<DrivePullResult> {
     const folders = await ensureDriveFolderStructure();
-    const readLocation = await resolveDriveSyncLocation(folders);
-    const manifest = await readDriveManifest(readLocation.manifestFolderId);
+    const manifest = await readMergedDriveManifest(folders);
     if (!manifest?.scenes.length) {
       return {
         restoredScenes: 0,

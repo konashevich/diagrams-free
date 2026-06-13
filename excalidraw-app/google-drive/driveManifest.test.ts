@@ -45,6 +45,30 @@ describe("mergeDriveManifests", () => {
   it("returns null when all inputs are empty", () => {
     expect(mergeDriveManifests(null, undefined)).toBeNull();
   });
+
+  it("migration window: nested newer for overlap, flat keeps its own scene", () => {
+    // Flat (legacy) has A,B,C but is older; nested has newer A,B after another
+    // device edited. Merged read must surface nested A,B and retain flat C.
+    const flat = manifest(
+      [entry("a", 100), entry("b", 100), entry("c", 100)],
+      100,
+    );
+    const nested = manifest(
+      [entry("a", 300, "Scene", "nested-a"), entry("b", 300, "Scene", "nested-b")],
+      300,
+    );
+
+    const merged = mergeDriveManifests(nested, flat);
+
+    expect(merged?.updatedAt).toBe(300);
+    expect(merged?.scenes.find((s) => s.id === "a")?.driveFileId).toBe(
+      "nested-a",
+    );
+    expect(merged?.scenes.find((s) => s.id === "b")?.updatedAt).toBe(300);
+    expect(merged?.scenes.find((s) => s.id === "c")?.driveFileId).toBe(
+      "file-c",
+    );
+  });
 });
 
 describe("manifestScenesEqual", () => {

@@ -9,6 +9,7 @@ import {
 } from "./constants";
 import { DriveApiError } from "./errors";
 import { getAccessToken, handleDriveAuthFailure } from "./auth";
+import { mergeDriveManifests } from "./driveManifest";
 import {
   DONATE_REMINDER_STATE_FILENAME,
   DRIVE_APP_FOLDER,
@@ -208,15 +209,17 @@ export const pickBestDriveSyncLocation = (
   return candidates[0].location;
 };
 
-/** Read location for existing backups (nested, flat root, or legacy vault/scenes). */
-export const resolveDriveSyncLocation = async (
+type DriveSyncCandidate = {
+  location: DriveSyncLocation;
+  manifest: DriveManifest | null;
+};
+
+/** Gather every manifest that exists (nested, flat root, legacy vault/scenes). */
+const collectDriveSyncCandidates = async (
   folders: DriveFolderIds,
-): Promise<DriveSyncLocation> => {
+): Promise<DriveSyncCandidate[]> => {
   const { rootId, vaultId, scenesId } = folders;
-  const candidates: {
-    location: DriveSyncLocation;
-    manifest: DriveManifest | null;
-  }[] = [];
+  const candidates: DriveSyncCandidate[] = [];
 
   if (
     vaultId &&
@@ -256,9 +259,29 @@ export const resolveDriveSyncLocation = async (
     });
   }
 
+  return candidates;
+};
+
+/** Write target resolution: prefer the manifest with the most scenes (legacy reads). */
+export const resolveDriveSyncLocation = async (
+  folders: DriveFolderIds,
+): Promise<DriveSyncLocation> => {
+  const candidates = await collectDriveSyncCandidates(folders);
   return (
     pickBestDriveSyncLocation(candidates) ?? nestedDriveSyncLocation(folders)
   );
+};
+
+/**
+ * Merge every existing manifest into one authoritative view (newest entry per
+ * scene id, max updatedAt). Used by peek/pull so that during a flat→nested
+ * migration we never miss updates that live in a different manifest.
+ */
+export const readMergedDriveManifest = async (
+  folders: DriveFolderIds,
+): Promise<DriveManifest | null> => {
+  const candidates = await collectDriveSyncCandidates(folders);
+  return mergeDriveManifests(...candidates.map((candidate) => candidate.manifest));
 };
 
 export const ensureDriveFolderStructure = async (): Promise<DriveFolderIds> => {
@@ -272,8 +295,7 @@ export const ensureDriveFolderStructure = async (): Promise<DriveFolderIds> => {
 /** Remote manifest timestamp without downloading scene files. */
 export const peekRemoteManifestUpdatedAt = async (): Promise<number | null> => {
   const folders = await ensureDriveFolderStructure();
-  const readLocation = await resolveDriveSyncLocation(folders);
-  const manifest = await readDriveManifest(readLocation.manifestFolderId);
+  const manifest = await readMergedDriveManifest(folders);
   return manifest?.updatedAt ?? null;
 };
 
