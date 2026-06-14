@@ -1,16 +1,39 @@
-.drive-sync-button {
-  &--stale,
-  &--updates_available {
-    --button-bg: var(--color-primary-light);
-    color: var(--color-primary);
-  }
+// Match LiveCollaborationTrigger (.collab-button) size and primary styling.
+.excalidraw {
+  .drive-sync-button {
+    --button-width: var(--lg-button-size);
+    --button-height: var(--lg-button-size);
 
-  &--syncing {
-    opacity: 0.65;
-    pointer-events: none;
-  }
+    box-shadow: 0 0 0 1px var(--color-surface-lowest);
+    flex-shrink: 0;
 
-  &--paused {
-    opacity: 0.5;
+    // Up to date — muted like the default toolbar control.
+    &--synced,
+    &--paused {
+      --button-bg: var(--island-bg-color);
+      --button-color: var(--color-on-surface);
+      --button-border: var(--default-border-color);
+      opacity: 0.55;
+    }
+
+    // Ready to sync — same primary fill as Share.
+    &--stale,
+    &--updates_available {
+      --button-bg: var(--color-primary);
+      --button-color: var(--color-surface-lowest);
+      --button-border: var(--color-primary);
+      --button-hover-bg: var(--color-primary-darker);
+      --button-hover-border: var(--color-primary-darker);
+      --button-active-bg: var(--color-primary-darker);
+      opacity: 1;
+    }
+
+    &--syncing {
+      --button-bg: var(--island-bg-color);
+      --button-color: var(--color-on-surface);
+      --button-border: var(--default-border-color);
+      opacity: 0.55;
+      pointer-events: none;
+    }
   }
 }

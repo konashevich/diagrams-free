@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { ToolButton } from "@excalidraw/excalidraw/components/ToolButton";
+import { Button } from "@excalidraw/excalidraw";
 import { RetryIcon } from "@excalidraw/excalidraw/components/icons";
 
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
@@ -54,7 +54,7 @@ export const DriveSyncButton = ({
   }
 
   const handleClick = () => {
-    if (isSyncing) {
+    if (isSyncing || status === "syncing") {
       return;
     }
     setIsSyncing(true);
@@ -78,14 +78,15 @@ export const DriveSyncButton = ({
   };
 
   return (
-    <ToolButton
+    <Button
       type="button"
       className={`drive-sync-button drive-sync-button--${status}`}
       aria-label={statusLabel(status)}
       title={statusLabel(status)}
-      icon={RetryIcon}
-      onClick={handleClick}
-      selected={status === "stale" || status === "updates_available"}
-    />
+      onSelect={handleClick}
+      disabled={status === "syncing" || isSyncing}
+    >
+      {RetryIcon}
+    </Button>
   );
 };

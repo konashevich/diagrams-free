@@ -14,6 +14,11 @@ vi.mock("../data/LocalData", () => ({
 
 vi.mock("./vaultSync", () => ({
   flushVaultSync: vi.fn().mockResolvedValue(undefined),
+  scheduleDeferredDriveBackup: vi.fn(),
+}));
+
+vi.mock("./sceneFonts", () => ({
+  ensureSceneFontsApplied: vi.fn().mockResolvedValue(undefined),
 }));
 
 const testStore = createStore(

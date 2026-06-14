@@ -17,6 +17,16 @@ vi.mock("../data/LocalData", () => ({
   },
 }));
 
+vi.mock("./sceneFonts", () => ({
+  ensureSceneFontsApplied: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("./vaultSync", () => ({
+  flushVaultSync: vi.fn().mockResolvedValue(undefined),
+  scheduleDeferredDriveBackup: vi.fn(),
+  cancelVaultSync: vi.fn(),
+}));
+
 vi.mock("./sceneImport", () => ({
   parseExcalidrawFileForVault: vi.fn(),
 }));

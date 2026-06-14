@@ -21,7 +21,12 @@ import {
 } from "../analytics/engagement";
 
 import { assertVaultEditingAllowed, isVaultEditingAllowed } from "./vaultGuards";
-import { cancelVaultSync, flushVaultSync } from "./vaultSync";
+import { ensureSceneFontsApplied } from "./sceneFonts";
+import {
+  cancelVaultSync,
+  flushVaultSync,
+  scheduleDeferredDriveBackup,
+} from "./vaultSync";
 
 export type { NewCanvasAnalyticsSource };
 
@@ -30,8 +35,9 @@ export class SceneVaultService {
 
   private async flushBeforeVaultIO(
     api: ExcalidrawImperativeAPI,
+    options?: { skipDrive?: boolean },
   ): Promise<void> {
-    await flushVaultSync(api);
+    await flushVaultSync(api, options);
     LocalData.flushSave();
   }
 
@@ -88,7 +94,7 @@ export class SceneVaultService {
       return true;
     }
 
-    await this.flushBeforeVaultIO(api);
+    await this.flushBeforeVaultIO(api, { skipDrive: true });
 
     const activeId = await this.store.getActiveSceneId();
     if (activeId) {
@@ -124,8 +130,11 @@ export class SceneVaultService {
       api.addFiles(Object.values(payload.files));
     }
 
+    await ensureSceneFontsApplied(api);
+
     await this.store.setActiveSceneId(sceneId);
     LocalData.flushSave();
+    scheduleDeferredDriveBackup();
     return true;
   }
 

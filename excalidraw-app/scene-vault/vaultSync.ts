@@ -51,3 +51,8 @@ export const flushVaultSync = async (
 export const cancelVaultSync = (): void => {
   debouncedSync.cancel();
 };
+
+/** Schedule a Drive backup after vault I/O that skipped an immediate flush. */
+export const scheduleDeferredDriveBackup = (): void => {
+  scheduleDriveVaultSync();
+};

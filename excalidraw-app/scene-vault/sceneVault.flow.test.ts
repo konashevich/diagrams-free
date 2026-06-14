@@ -16,6 +16,16 @@ vi.mock("../data/LocalData", () => ({
   },
 }));
 
+vi.mock("./sceneFonts", () => ({
+  ensureSceneFontsApplied: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("./vaultSync", () => ({
+  flushVaultSync: vi.fn().mockResolvedValue(undefined),
+  scheduleDeferredDriveBackup: vi.fn(),
+  cancelVaultSync: vi.fn(),
+}));
+
 const testStore = createStore("scene-vault-flow-db", "scene-vault-flow-store");
 
 const payloadA = (): VaultScenePayload => ({
