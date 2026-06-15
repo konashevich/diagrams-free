@@ -7,6 +7,22 @@
     box-shadow: 0 0 0 1px var(--color-surface-lowest);
     flex-shrink: 0;
 
+    // Sign in — island button with Drive icon (before Google account is linked).
+    &--sign-in {
+      --button-bg: var(--island-bg-color);
+      --button-color: var(--color-on-surface);
+      --button-border: var(--default-border-color);
+      --button-hover-bg: var(--island-bg-color);
+      --button-hover-border: var(--color-primary);
+      opacity: 1;
+
+      .drive-sync-button__drive-icon {
+        display: block;
+        width: 1.25rem;
+        height: 1.25rem;
+      }
+    }
+
     // Up to date — muted like the default toolbar control.
     &--synced,
     &--paused {

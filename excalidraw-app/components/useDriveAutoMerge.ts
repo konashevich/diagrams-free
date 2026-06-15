@@ -3,6 +3,8 @@ import { useEffect, useRef } from "react";
 
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
+import { syncDonateReminderWithDrive } from "../donate/reminder/donateReminderService";
+import { isDonateEnabled } from "../donate/donateConfig";
 import {
   driveMergeService,
   getAccessToken,
@@ -13,11 +15,32 @@ import {
   notifyDriveAutoMergeFailed,
   registerDriveLinkedHandler,
   runDriveMergeSerialized,
+  signInWithGoogle,
   warmDriveAccessToken,
   withDriveAccess,
 } from "../google-drive";
 
+import type { DriveAuthSession, DriveMergeResult } from "../google-drive/types";
+
 const AUTO_MERGE_INTERVAL_MS = 5 * 60 * 1000;
+
+export type SignInAndMergeDriveResult = {
+  session: DriveAuthSession;
+  result: DriveMergeResult;
+};
+
+/** Same flow as My scenes → Sign in with Google, then merge vault with Drive. */
+export const signInAndMergeDrive = async (
+  excalidrawAPI: ExcalidrawImperativeAPI,
+  confirmActiveSceneReload?: () => Promise<boolean>,
+): Promise<SignInAndMergeDriveResult> => {
+  const session = await signInWithGoogle();
+  if (isDonateEnabled()) {
+    void syncDonateReminderWithDrive();
+  }
+  const result = await runDriveMergeNow(excalidrawAPI, confirmActiveSceneReload);
+  return { session, result };
+};
 
 type Options = {
   excalidrawAPI: ExcalidrawImperativeAPI | null;

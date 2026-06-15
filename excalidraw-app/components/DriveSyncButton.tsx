@@ -10,11 +10,15 @@ import {
   formatDriveMergeSuccessMessage,
   isDriveAccessRefreshError,
   isGoogleDriveEnabled,
-  isGoogleDriveLinked,
 } from "../google-drive";
 
-import { runDriveMergeNow } from "./useDriveAutoMerge";
+import { GoogleDriveBwIcon } from "./icons/GoogleDriveBwIcon";
+import {
+  runDriveMergeNow,
+  signInAndMergeDrive,
+} from "./useDriveAutoMerge";
 import { useDriveSyncStatus } from "./useDriveSyncStatus";
+import { useGoogleDriveLinked } from "./useGoogleDriveLinked";
 
 import "./DriveSyncButton.scss";
 
@@ -34,7 +38,7 @@ const statusLabel = (status: ReturnType<typeof useDriveSyncStatus>): string => {
     case "updates_available":
       return "Updates available from Google Drive — click to sync";
     case "paused":
-      return "Google Drive sync paused — sign in from My scenes";
+      return "Google Drive sync paused — click to reconnect";
     default:
       return "Synced with Google Drive — click to sync now";
   }
@@ -46,18 +50,43 @@ export const DriveSyncButton = ({
   onError,
   onSuccess,
 }: Props) => {
-  const [isSyncing, setIsSyncing] = useState(false);
-  const status = useDriveSyncStatus({ isSyncing });
+  const [isBusy, setIsBusy] = useState(false);
+  const linked = useGoogleDriveLinked();
+  const status = useDriveSyncStatus({ isSyncing: isBusy && linked });
 
-  if (!isGoogleDriveEnabled() || !isGoogleDriveLinked()) {
+  if (!isGoogleDriveEnabled()) {
     return null;
   }
 
-  const handleClick = () => {
-    if (isSyncing || status === "syncing") {
+  const handleSignIn = () => {
+    if (isBusy) {
       return;
     }
-    setIsSyncing(true);
+    setIsBusy(true);
+    void signInAndMergeDrive(excalidrawAPI, confirmActiveSceneReload)
+      .then(({ result }) => {
+        onSuccess?.(formatDriveMergeSuccessMessage(result));
+      })
+      .catch((error) => {
+        console.error("[google-drive] sign-in from toolbar", error);
+        if (isDriveAccessRefreshError(error)) {
+          onError?.(driveAccessRefreshFailedMessage);
+        } else {
+          onError?.(
+            error instanceof Error ? error.message : "Google sign-in failed.",
+          );
+        }
+      })
+      .finally(() => {
+        setIsBusy(false);
+      });
+  };
+
+  const handleSync = () => {
+    if (isBusy || status === "syncing") {
+      return;
+    }
+    setIsBusy(true);
     void runDriveMergeNow(excalidrawAPI, confirmActiveSceneReload)
       .then((result) => {
         onSuccess?.(formatDriveMergeSuccessMessage(result));
@@ -73,9 +102,24 @@ export const DriveSyncButton = ({
         }
       })
       .finally(() => {
-        setIsSyncing(false);
+        setIsBusy(false);
       });
   };
+
+  if (!linked) {
+    return (
+      <Button
+        type="button"
+        className="drive-sync-button drive-sync-button--sign-in"
+        aria-label="Sign in with Google to sync My scenes"
+        title="Sign in with Google to sync My scenes"
+        onSelect={handleSignIn}
+        disabled={isBusy}
+      >
+        <GoogleDriveBwIcon />
+      </Button>
+    );
+  }
 
   return (
     <Button
@@ -83,8 +127,8 @@ export const DriveSyncButton = ({
       className={`drive-sync-button drive-sync-button--${status}`}
       aria-label={statusLabel(status)}
       title={statusLabel(status)}
-      onSelect={handleClick}
-      disabled={status === "syncing" || isSyncing}
+      onSelect={handleSync}
+      disabled={status === "syncing" || isBusy}
     >
       {RetryIcon}
     </Button>

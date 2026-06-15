@@ -4,8 +4,6 @@ import DialogActionButton from "@excalidraw/excalidraw/components/DialogActionBu
 
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
-import { syncDonateReminderWithDrive } from "../donate/reminder/donateReminderService";
-import { isDonateEnabled } from "../donate/donateConfig";
 import {
   driveSyncService,
   driveAccessRefreshFailedMessage,
@@ -27,7 +25,7 @@ import {
   withDriveAccess,
 } from "../google-drive";
 import { useDriveSessionMonitor } from "./useDriveSessionMonitor";
-import { runDriveMergeNow } from "./useDriveAutoMerge";
+import { runDriveMergeNow, signInAndMergeDrive } from "./useDriveAutoMerge";
 
 type Props = {
   excalidrawAPI: ExcalidrawImperativeAPI;
@@ -174,17 +172,13 @@ export const GoogleDrivePanel = ({
     setBusy(true);
     setError(null);
     try {
-      const session = await signInWithGoogle();
-      setSignedIn(true);
-      setSessionReady(true);
-      setEmail(session.email ?? null);
-      if (isDonateEnabled()) {
-        void syncDonateReminderWithDrive();
-      }
-      const result = await runDriveMergeNow(
+      const { session, result } = await signInAndMergeDrive(
         excalidrawAPI,
         confirmActiveSceneReload,
       );
+      setSignedIn(true);
+      setSessionReady(true);
+      setEmail(session.email ?? null);
       applyMergeResult(
         result.syncedAt,
         formatDriveMergeSuccessMessage(result),
