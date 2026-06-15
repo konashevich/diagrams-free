@@ -74,23 +74,42 @@ export const clearDriveFolderCache = (): void => {
   sessionStorage.removeItem(DRIVE_FOLDER_CACHE_KEY);
 };
 
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const isRetryableNetworkError = (error: unknown): boolean =>
+  error instanceof TypeError &&
+  /failed to fetch|networkerror|load failed/i.test(error.message);
+
 const driveFetch = async (
   path: string,
   init: RequestInit = {},
+  attempt = 0,
 ): Promise<Response> => {
   const token = getAccessToken();
   if (!token) {
     throw new DriveApiError("Not signed in to Google.", 401);
   }
 
-  const response = await fetch(`${DRIVE_API_BASE}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(init.body ? { "Content-Type": "application/json" } : {}),
-      ...init.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${DRIVE_API_BASE}${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(init.body ? { "Content-Type": "application/json" } : {}),
+        ...init.headers,
+      },
+    });
+  } catch (error) {
+    if (isRetryableNetworkError(error) && attempt < 2) {
+      await sleep(400 * 2 ** attempt);
+      return driveFetch(path, init, attempt + 1);
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     let message = `Google Drive request failed (${response.status})`;
@@ -146,21 +165,68 @@ const createFolder = async (
   return data.id;
 };
 
-const ensureRootFolder = async (): Promise<string> => {
+const listRootFolders = async (): Promise<{ id: string }[]> => {
   const rootName = getDriveRootFolderName();
   const q = encodeURIComponent(
     `name='${rootName.replace(/'/g, "\\'")}' and mimeType='${FOLDER_MIME}' and trashed=false and 'root' in parents`,
   );
-  // orderBy=createdTime: if duplicate roots exist, every client deterministically
-  // picks the oldest one instead of forking a new folder.
   const response = await driveFetch(
-    `/files?q=${q}&fields=files(id,name)&orderBy=createdTime&pageSize=10&spaces=drive`,
+    `/files?q=${q}&fields=files(id,name)&orderBy=createdTime&pageSize=100&spaces=drive`,
   );
   const data = (await response.json()) as { files?: { id: string }[] };
-  if (data.files?.[0]?.id) {
-    return data.files[0].id;
+  return data.files ?? [];
+};
+
+/** Prefer the root tree that already has vault scenes (not an empty duplicate). */
+const scoreRootFolder = async (rootId: string): Promise<number> => {
+  const vaultId = await findChildFolder(rootId, DRIVE_VAULT_FOLDER);
+  if (!vaultId) {
+    return 0;
   }
-  return createFolder(rootName, "root");
+
+  const manifest = await readDriveManifest(vaultId);
+  if (manifest?.scenes.length) {
+    return manifest.scenes.length * 1_000_000 + (manifest.updatedAt ?? 0);
+  }
+
+  const scenesId = await findChildFolder(vaultId, DRIVE_SCENES_FOLDER);
+  if (!scenesId) {
+    return 0;
+  }
+
+  const files = await listFilesInParent(scenesId);
+  const sceneFiles = files.filter((file) => file.name.endsWith(".excalidraw"));
+  if (!sceneFiles.length) {
+    return 0;
+  }
+
+  const newestModified = sceneFiles.reduce(
+    (max, file) => Math.max(max, Date.parse(file.modifiedTime ?? "") || 0),
+    0,
+  );
+  return sceneFiles.length * 10_000 + newestModified;
+};
+
+const ensureRootFolder = async (): Promise<string> => {
+  const roots = await listRootFolders();
+  if (roots.length === 0) {
+    return createFolder(getDriveRootFolderName(), "root");
+  }
+  if (roots.length === 1) {
+    return roots[0].id;
+  }
+
+  const scored = await Promise.all(
+    roots.map(async (root) => ({
+      id: root.id,
+      score: await scoreRootFolder(root.id),
+    })),
+  );
+  scored.sort((a, b) => b.score - a.score);
+  if (scored[0].score > 0) {
+    return scored[0].id;
+  }
+  return roots[0].id;
 };
 
 const isCompleteFolderIds = (ids: DriveFolderIds | null): ids is DriveFolderIds =>
@@ -219,7 +285,7 @@ type DriveSyncCandidate = {
 };
 
 /** Gather every manifest that exists (nested, flat root, legacy vault/scenes). */
-const collectDriveSyncCandidates = async (
+export const collectDriveSyncCandidates = async (
   folders: DriveFolderIds,
 ): Promise<DriveSyncCandidate[]> => {
   const { rootId, vaultId, scenesId } = folders;
@@ -296,14 +362,15 @@ export const readMergedDriveManifest = async (
 let folderStructurePromise: Promise<DriveFolderIds> | null = null;
 
 export const ensureDriveFolderStructure = async (): Promise<DriveFolderIds> => {
-  const cached = readFolderCache();
-  if (isCompleteFolderIds(cached)) {
-    return cached;
-  }
   if (!folderStructurePromise) {
-    folderStructurePromise = buildDriveFolderStructure().finally(() => {
-      folderStructurePromise = null;
-    });
+    folderStructurePromise = buildDriveFolderStructure()
+      .then((ids) => {
+        writeFolderCache(ids);
+        return ids;
+      })
+      .finally(() => {
+        folderStructurePromise = null;
+      });
   }
   return folderStructurePromise;
 };
@@ -397,6 +464,16 @@ export const uploadTextFile = async (options: {
     method: options.existingFileId ? "PATCH" : "POST",
     headers: { Authorization: `Bearer ${token}` },
     body: form,
+  }).catch(async (error) => {
+    if (isRetryableNetworkError(error)) {
+      await sleep(400);
+      return fetch(url, {
+        method: options.existingFileId ? "PATCH" : "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+    }
+    throw error;
   });
 
   if (!response.ok) {
@@ -424,6 +501,7 @@ export const downloadFileText = async (fileId: string): Promise<string> => {
 export type DriveListedFile = {
   id: string;
   name: string;
+  modifiedTime?: string;
 };
 
 /** List non-trashed files in a folder (paginated). */
@@ -439,7 +517,7 @@ export const listFilesInParent = async (
       ? `&pageToken=${encodeURIComponent(pageToken)}`
       : "";
     const response = await driveFetch(
-      `/files?q=${q}&fields=nextPageToken,files(id,name)&pageSize=200&spaces=drive${pageTokenQuery}`,
+      `/files?q=${q}&fields=nextPageToken,files(id,name,modifiedTime)&pageSize=200&spaces=drive${pageTokenQuery}`,
     );
     const data = (await response.json()) as {
       files?: DriveListedFile[];

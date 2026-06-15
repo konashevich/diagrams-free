@@ -111,10 +111,12 @@ export {
   notifyDriveAutoMergeFailed,
   notifyDriveAutoMergeSuccess,
   notifyDriveAutoSyncFailed,
+  notifyDriveLinked,
   registerDriveActiveSceneNeedsReloadNotifier,
   registerDriveAutoMergeFailedNotifier,
   registerDriveAutoMergeSuccessNotifier,
   registerDriveAutoSyncNotifier,
+  registerDriveLinkedHandler,
 } from "./driveAutoSyncNotify";
 
 export {

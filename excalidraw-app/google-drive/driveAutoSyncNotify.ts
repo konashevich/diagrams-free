@@ -34,6 +34,23 @@ export const registerDriveActiveSceneNeedsReloadNotifier = (
   notifyActiveSceneNeedsReload = fn;
 };
 
+let notifyDriveLinkedHandler: (() => void) | null = null;
+
+export const registerDriveLinkedHandler = (
+  fn: (() => void) | null,
+): (() => void) => {
+  notifyDriveLinkedHandler = fn;
+  return () => {
+    if (notifyDriveLinkedHandler === fn) {
+      notifyDriveLinkedHandler = null;
+    }
+  };
+};
+
+export const notifyDriveLinked = (): void => {
+  notifyDriveLinkedHandler?.();
+};
+
 export const notifyDriveAutoSyncFailed = (): void => {
   notifyAutoSyncFailed?.();
 };

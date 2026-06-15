@@ -4,8 +4,10 @@ import { sceneVaultStore, buildVaultScene } from "../scene-vault/SceneVaultStore
 import { serializeVaultSceneForDownload } from "../scene-vault/sceneExport";
 import { parseExcalidrawFileForVault } from "../scene-vault/sceneImport";
 
+import { resolveDriveManifestForPull } from "./driveManifestDiscovery";
 import {
   createEmptyManifest,
+  downloadFileText,
   ensureDriveFolderStructure,
   findManifestFileId,
   findSceneFileInFolder,
@@ -15,7 +17,6 @@ import {
   uploadVaultSceneFile,
   withDriveFolderRetry,
   writeDriveManifest,
-  downloadFileText,
 } from "./api";
 import {
   manifestScenesEqual,
@@ -184,7 +185,7 @@ export class DriveSyncService {
 
   private async pullVaultFromDriveInner(): Promise<DrivePullResult> {
     const folders = await ensureDriveFolderStructure();
-    const manifest = await readMergedDriveManifest(folders);
+    const manifest = await resolveDriveManifestForPull(folders);
     if (!manifest?.scenes.length) {
       return {
         restoredScenes: 0,

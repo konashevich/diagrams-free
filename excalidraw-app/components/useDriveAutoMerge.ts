@@ -5,10 +5,14 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
 import {
   driveMergeService,
+  getAccessToken,
+  initDriveAuth,
   isGoogleDriveEnabled,
   isGoogleDriveLinked,
   notifyDriveAutoMergeSuccess,
   notifyDriveAutoMergeFailed,
+  registerDriveLinkedHandler,
+  warmDriveAccessToken,
   withDriveAccess,
 } from "../google-drive";
 
@@ -44,6 +48,11 @@ export const useDriveAutoMerge = ({
       }
       mergingRef.current = true;
       try {
+        await initDriveAuth();
+        await warmDriveAccessToken();
+        if (!isGoogleDriveLinked() || !getAccessToken()) {
+          return;
+        }
         const result = await withDriveAccess(() =>
           driveMergeService.mergeVaultWithDrive({ excalidrawAPI }),
         );
@@ -75,9 +84,20 @@ export const useDriveAutoMerge = ({
 
     document.addEventListener("visibilitychange", onVisible);
 
+    const unregisterLinked = registerDriveLinkedHandler(() => {
+      void runMerge({ force: true });
+    });
+
+    void initDriveAuth().then(() => {
+      if (isGoogleDriveLinked()) {
+        void runMerge({ force: true });
+      }
+    });
+
     return () => {
       debouncedVisibleMerge.cancel();
       document.removeEventListener("visibilitychange", onVisible);
+      unregisterLinked();
     };
   }, [enabled, excalidrawAPI]);
 };

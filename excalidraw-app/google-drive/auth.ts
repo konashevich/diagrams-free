@@ -14,6 +14,7 @@ import {
   readSessionFromLocalStorage,
 } from "./authSessionStore";
 import { DriveAuthError, DriveNotConfiguredError } from "./errors";
+import { notifyDriveLinked } from "./driveAutoSyncNotify";
 import {
   isOAuthProxyEnabled,
   refreshViaOAuthProxy,
@@ -282,6 +283,7 @@ const requestGoogleAccessToken = (
             markGoogleDriveLinked();
             const email = await fetchUserEmail(response.access_token);
             persistAccountEmail(email);
+            notifyDriveLinked();
             resolve({
               accessToken: session.accessToken,
               expiresAt: session.expiresAt,
@@ -374,6 +376,7 @@ const completeProxySignIn = async (
   if (session.email) {
     persistAccountEmail(session.email);
   }
+  notifyDriveLinked();
   return session;
 };
 
