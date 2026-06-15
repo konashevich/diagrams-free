@@ -10,6 +10,7 @@ import {
 import { DriveApiError } from "./errors";
 import { getAccessToken, handleDriveAuthFailure } from "./auth";
 import { mergeDriveManifests } from "./driveManifest";
+import { coalesceDriveRequest } from "./driveRequestCoalesce";
 import {
   DONATE_REMINDER_STATE_FILENAME,
   DRIVE_APP_FOLDER,
@@ -136,18 +137,17 @@ const driveFetch = async (
 const findChildFolder = async (
   parentId: string,
   name: string,
-): Promise<string | null> => {
-  const q = encodeURIComponent(
-    `'${parentId}' in parents and name='${name.replace(/'/g, "\\'")}' and mimeType='${FOLDER_MIME}' and trashed=false`,
-  );
-  // orderBy=createdTime so all clients converge on the oldest folder when
-  // duplicates exist (recovery from any prior duplicate-creation race).
-  const response = await driveFetch(
-    `/files?q=${q}&fields=files(id,name)&orderBy=createdTime&pageSize=10&spaces=drive`,
-  );
-  const data = (await response.json()) as { files?: { id: string }[] };
-  return data.files?.[0]?.id ?? null;
-};
+): Promise<string | null> =>
+  coalesceDriveRequest(`child:${parentId}:${name}`, async () => {
+    const q = encodeURIComponent(
+      `'${parentId}' in parents and name='${name.replace(/'/g, "\\'")}' and mimeType='${FOLDER_MIME}' and trashed=false`,
+    );
+    const response = await driveFetch(
+      `/files?q=${q}&fields=files(id,name)&orderBy=createdTime&pageSize=10&spaces=drive`,
+    );
+    const data = (await response.json()) as { files?: { id: string }[] };
+    return data.files?.[0]?.id ?? null;
+  });
 
 const createFolder = async (
   name: string,
@@ -178,34 +178,35 @@ const listRootFolders = async (): Promise<{ id: string }[]> => {
 };
 
 /** Prefer the root tree that already has vault scenes (not an empty duplicate). */
-const scoreRootFolder = async (rootId: string): Promise<number> => {
-  const vaultId = await findChildFolder(rootId, DRIVE_VAULT_FOLDER);
-  if (!vaultId) {
-    return 0;
-  }
-
-  const manifest = await readDriveManifest(vaultId);
-  if (manifest?.scenes.length) {
-    return manifest.scenes.length * 1_000_000 + (manifest.updatedAt ?? 0);
-  }
-
-  const scenesId = await findChildFolder(vaultId, DRIVE_SCENES_FOLDER);
-  if (!scenesId) {
-    return 0;
-  }
-
-  const files = await listFilesInParent(scenesId);
-  const sceneFiles = files.filter((file) => file.name.endsWith(".excalidraw"));
-  if (!sceneFiles.length) {
-    return 0;
-  }
-
-  const newestModified = sceneFiles.reduce(
-    (max, file) => Math.max(max, Date.parse(file.modifiedTime ?? "") || 0),
-    0,
-  );
-  return sceneFiles.length * 10_000 + newestModified;
-};
+const scoreRootFolder = async (rootId: string): Promise<number> =>
+  coalesceDriveRequest(`root-score:${rootId}`, async () => {
+    const vaultId = await findChildFolder(rootId, DRIVE_VAULT_FOLDER);
+    if (!vaultId) {
+      return 0;
+    }
+    const scenesId = await findChildFolder(vaultId, DRIVE_SCENES_FOLDER);
+    if (!scenesId) {
+      return 0;
+    }
+    const q = encodeURIComponent(
+      `'${scenesId}' in parents and name contains '.excalidraw' and trashed=false`,
+    );
+    const response = await driveFetch(
+      `/files?q=${q}&fields=files(id,modifiedTime)&pageSize=50&spaces=drive`,
+    );
+    const data = (await response.json()) as {
+      files?: { modifiedTime?: string }[];
+    };
+    const sceneFiles = data.files ?? [];
+    if (!sceneFiles.length) {
+      return 0;
+    }
+    const newestModified = sceneFiles.reduce(
+      (max, file) => Math.max(max, Date.parse(file.modifiedTime ?? "") || 0),
+      0,
+    );
+    return sceneFiles.length * 10_000 + newestModified;
+  });
 
 const ensureRootFolder = async (): Promise<string> => {
   const roots = await listRootFolders();
@@ -216,17 +217,16 @@ const ensureRootFolder = async (): Promise<string> => {
     return roots[0].id;
   }
 
-  const scored = await Promise.all(
-    roots.map(async (root) => ({
-      id: root.id,
-      score: await scoreRootFolder(root.id),
-    })),
-  );
-  scored.sort((a, b) => b.score - a.score);
-  if (scored[0].score > 0) {
-    return scored[0].id;
+  let bestId = roots[0].id;
+  let bestScore = 0;
+  for (const root of roots) {
+    const score = await scoreRootFolder(root.id);
+    if (score > bestScore) {
+      bestScore = score;
+      bestId = root.id;
+    }
   }
-  return roots[0].id;
+  return bestId;
 };
 
 const isCompleteFolderIds = (ids: DriveFolderIds | null): ids is DriveFolderIds =>
@@ -291,42 +291,40 @@ export const collectDriveSyncCandidates = async (
   const { rootId, vaultId, scenesId } = folders;
   const candidates: DriveSyncCandidate[] = [];
 
-  if (
-    vaultId &&
-    (await findFileInParent(vaultId, DRIVE_MANIFEST_FILENAME))
-  ) {
+  const nestedManifest = await readDriveManifest(vaultId);
+  if (nestedManifest) {
     candidates.push({
       location: {
         manifestFolderId: vaultId,
         scenesFolderId: scenesId ?? vaultId,
       },
-      manifest: await readDriveManifest(vaultId),
+      manifest: nestedManifest,
     });
   }
 
-  if (await findFileInParent(rootId, DRIVE_MANIFEST_FILENAME)) {
+  const rootManifest = await readDriveManifest(rootId);
+  if (rootManifest) {
     candidates.push({
       location: { manifestFolderId: rootId, scenesFolderId: rootId },
-      manifest: await readDriveManifest(rootId),
+      manifest: rootManifest,
     });
   }
 
   const legacyVaultId = await findChildFolder(rootId, DRIVE_VAULT_FOLDER);
-  if (
-    legacyVaultId &&
-    legacyVaultId !== vaultId &&
-    (await findFileInParent(legacyVaultId, DRIVE_MANIFEST_FILENAME))
-  ) {
-    const legacyScenesId =
-      (await findChildFolder(legacyVaultId, DRIVE_SCENES_FOLDER)) ??
-      legacyVaultId;
-    candidates.push({
-      location: {
-        manifestFolderId: legacyVaultId,
-        scenesFolderId: legacyScenesId,
-      },
-      manifest: await readDriveManifest(legacyVaultId),
-    });
+  if (legacyVaultId && legacyVaultId !== vaultId) {
+    const legacyManifest = await readDriveManifest(legacyVaultId);
+    if (legacyManifest) {
+      const legacyScenesId =
+        (await findChildFolder(legacyVaultId, DRIVE_SCENES_FOLDER)) ??
+        legacyVaultId;
+      candidates.push({
+        location: {
+          manifestFolderId: legacyVaultId,
+          scenesFolderId: legacyScenesId,
+        },
+        manifest: legacyManifest,
+      });
+    }
   }
 
   return candidates;
@@ -362,6 +360,10 @@ export const readMergedDriveManifest = async (
 let folderStructurePromise: Promise<DriveFolderIds> | null = null;
 
 export const ensureDriveFolderStructure = async (): Promise<DriveFolderIds> => {
+  const cached = readFolderCache();
+  if (isCompleteFolderIds(cached)) {
+    return cached;
+  }
   if (!folderStructurePromise) {
     folderStructurePromise = buildDriveFolderStructure()
       .then((ids) => {
@@ -400,16 +402,17 @@ export const withDriveFolderRetry = async <T>(
 const findFileInParent = async (
   parentId: string,
   name: string,
-): Promise<string | null> => {
-  const q = encodeURIComponent(
-    `'${parentId}' in parents and name='${name.replace(/'/g, "\\'")}' and trashed=false`,
-  );
-  const response = await driveFetch(
-    `/files?q=${q}&fields=files(id,name)&pageSize=1&spaces=drive`,
-  );
-  const data = (await response.json()) as { files?: { id: string }[] };
-  return data.files?.[0]?.id ?? null;
-};
+): Promise<string | null> =>
+  coalesceDriveRequest(`file:${parentId}:${name}`, async () => {
+    const q = encodeURIComponent(
+      `'${parentId}' in parents and name='${name.replace(/'/g, "\\'")}' and trashed=false`,
+    );
+    const response = await driveFetch(
+      `/files?q=${q}&fields=files(id,name)&pageSize=1&spaces=drive`,
+    );
+    const data = (await response.json()) as { files?: { id: string }[] };
+    return data.files?.[0]?.id ?? null;
+  });
 
 const parseDriveErrorMessage = async (
   response: Response,
@@ -507,30 +510,31 @@ export type DriveListedFile = {
 /** List non-trashed files in a folder (paginated). */
 export const listFilesInParent = async (
   parentId: string,
-): Promise<DriveListedFile[]> => {
-  const files: DriveListedFile[] = [];
-  let pageToken: string | undefined;
+): Promise<DriveListedFile[]> =>
+  coalesceDriveRequest(`list:${parentId}`, async () => {
+    const files: DriveListedFile[] = [];
+    let pageToken: string | undefined;
 
-  do {
-    const q = encodeURIComponent(`'${parentId}' in parents and trashed=false`);
-    const pageTokenQuery = pageToken
-      ? `&pageToken=${encodeURIComponent(pageToken)}`
-      : "";
-    const response = await driveFetch(
-      `/files?q=${q}&fields=nextPageToken,files(id,name,modifiedTime)&pageSize=200&spaces=drive${pageTokenQuery}`,
-    );
-    const data = (await response.json()) as {
-      files?: DriveListedFile[];
-      nextPageToken?: string;
-    };
-    if (data.files?.length) {
-      files.push(...data.files);
-    }
-    pageToken = data.nextPageToken;
-  } while (pageToken);
+    do {
+      const q = encodeURIComponent(`'${parentId}' in parents and trashed=false`);
+      const pageTokenQuery = pageToken
+        ? `&pageToken=${encodeURIComponent(pageToken)}`
+        : "";
+      const response = await driveFetch(
+        `/files?q=${q}&fields=nextPageToken,files(id,name,modifiedTime)&pageSize=200&spaces=drive${pageTokenQuery}`,
+      );
+      const data = (await response.json()) as {
+        files?: DriveListedFile[];
+        nextPageToken?: string;
+      };
+      if (data.files?.length) {
+        files.push(...data.files);
+      }
+      pageToken = data.nextPageToken;
+    } while (pageToken);
 
-  return files;
-};
+    return files;
+  });
 
 export const trashDriveFile = async (fileId: string): Promise<void> => {
   await driveFetch(`/files/${fileId}`, {
@@ -555,28 +559,29 @@ export const trashDriveFiles = async (fileIds: string[]): Promise<number> => {
 
 export const readDriveManifest = async (
   vaultFolderId: string,
-): Promise<DriveManifest | null> => {
-  const manifestFileId = await findFileInParent(
-    vaultFolderId,
-    DRIVE_MANIFEST_FILENAME,
-  );
-  if (!manifestFileId) {
-    return null;
-  }
-  const text = await downloadFileText(manifestFileId);
-  try {
-    const manifest = JSON.parse(text) as DriveManifest;
-    if (
-      typeof manifest.version !== "number" ||
-      !Array.isArray(manifest.scenes)
-    ) {
+): Promise<DriveManifest | null> =>
+  coalesceDriveRequest(`manifest:${vaultFolderId}`, async () => {
+    const manifestFileId = await findFileInParent(
+      vaultFolderId,
+      DRIVE_MANIFEST_FILENAME,
+    );
+    if (!manifestFileId) {
       return null;
     }
-    return manifest;
-  } catch {
-    return null;
-  }
-};
+    const text = await downloadFileText(manifestFileId);
+    try {
+      const manifest = JSON.parse(text) as DriveManifest;
+      if (
+        typeof manifest.version !== "number" ||
+        !Array.isArray(manifest.scenes)
+      ) {
+        return null;
+      }
+      return manifest;
+    } catch {
+      return null;
+    }
+  });
 
 export const writeDriveManifest = async (
   vaultFolderId: string,

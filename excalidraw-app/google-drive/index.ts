@@ -126,6 +126,11 @@ export {
 } from "./withDriveAccess";
 
 export {
+  isDriveSyncBusy,
+  runDriveMergeSerialized,
+} from "./driveMergeLock";
+
+export {
   flushDriveVaultSync,
   scheduleDriveVaultSync,
 } from "./driveVaultSync";

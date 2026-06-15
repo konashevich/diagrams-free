@@ -1,3 +1,4 @@
+import { debounce } from "@excalidraw/common";
 import { useCallback, useEffect, useState } from "react";
 
 import { useAtomValue } from "../app-jotai";
@@ -6,9 +7,9 @@ import { sceneVaultListRevisionAtom } from "../scene-vault/vaultState";
 import {
   computeDriveSyncStatus,
   getCachedRemoteManifestAt,
-  invalidateDriveRemoteManifestCache,
   peekDriveRemoteManifest,
 } from "../google-drive/driveSyncStatus";
+import { isDriveSyncBusy } from "../google-drive/driveMergeLock";
 import {
   getDriveRemoteManifestAt,
   isGoogleDriveEnabled,
@@ -26,7 +27,11 @@ export const useDriveSyncStatus = (options?: {
   const [remoteManifestAt, setRemoteManifestAt] = useState<number | null>(null);
 
   const refreshRemote = useCallback(async () => {
-    if (!isGoogleDriveEnabled() || !isGoogleDriveLinked()) {
+    if (
+      !isGoogleDriveEnabled() ||
+      !isGoogleDriveLinked() ||
+      isDriveSyncBusy()
+    ) {
       return;
     }
     const remoteAt = await peekDriveRemoteManifest();
@@ -34,26 +39,30 @@ export const useDriveSyncStatus = (options?: {
   }, []);
 
   useEffect(() => {
-    invalidateDriveRemoteManifestCache();
     setRemoteManifestAt(
       getDriveRemoteManifestAt() ?? getCachedRemoteManifestAt(),
     );
-    void refreshRemote();
+    const debouncedRefresh = debounce(() => {
+      void refreshRemote();
+    }, 2500);
+    debouncedRefresh();
     const interval = window.setInterval(() => {
       if (
         document.visibilityState === "visible" &&
-        isGoogleDriveLinked()
+        isGoogleDriveLinked() &&
+        !isDriveSyncBusy()
       ) {
-        void refreshRemote();
+        debouncedRefresh();
       }
     }, REMOTE_PEEK_INTERVAL_MS);
     const onVisible = () => {
       if (document.visibilityState === "visible") {
-        void refreshRemote();
+        debouncedRefresh();
       }
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
+      debouncedRefresh.cancel();
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
     };

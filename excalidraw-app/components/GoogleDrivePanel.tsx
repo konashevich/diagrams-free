@@ -7,7 +7,6 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { syncDonateReminderWithDrive } from "../donate/reminder/donateReminderService";
 import { isDonateEnabled } from "../donate/donateConfig";
 import {
-  driveMergeService,
   driveSyncService,
   driveAccessRefreshFailedMessage,
   formatDriveMergeSuccessMessage,
@@ -182,11 +181,9 @@ export const GoogleDrivePanel = ({
       if (isDonateEnabled()) {
         void syncDonateReminderWithDrive();
       }
-      const result = await withDriveAccess(() =>
-        driveMergeService.mergeVaultWithDrive({
-          excalidrawAPI,
-          confirmActiveSceneReload,
-        }),
+      const result = await runDriveMergeNow(
+        excalidrawAPI,
+        confirmActiveSceneReload,
       );
       applyMergeResult(
         result.syncedAt,

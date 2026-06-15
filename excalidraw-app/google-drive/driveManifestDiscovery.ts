@@ -1,9 +1,6 @@
-import {
-  collectDriveSyncCandidates,
-  listFilesInParent,
-  readMergedDriveManifest,
-} from "./api";
+import { collectDriveSyncCandidates, listFilesInParent } from "./api";
 import { DRIVE_MANIFEST_VERSION } from "./constants";
+import { mergeDriveManifests } from "./driveManifest";
 import { sceneIdFromDriveSceneFilename } from "./paths";
 
 import type { DriveFolderIds, DriveManifest, DriveManifestSceneEntry } from "./types";
@@ -24,12 +21,14 @@ const parseDriveModifiedTime = (modifiedTime?: string): number => {
 export const resolveDriveManifestForPull = async (
   folders: DriveFolderIds,
 ): Promise<DriveManifest | null> => {
-  const manifest = await readMergedDriveManifest(folders);
+  const candidates = await collectDriveSyncCandidates(folders);
+  const manifest = mergeDriveManifests(
+    ...candidates.map((candidate) => candidate.manifest),
+  );
   const byId = new Map<string, DriveManifestSceneEntry>(
     (manifest?.scenes ?? []).map((entry) => [entry.id, entry]),
   );
 
-  const candidates = await collectDriveSyncCandidates(folders);
   const sceneFolderIds = new Set<string>([folders.scenesId]);
   for (const candidate of candidates) {
     sceneFolderIds.add(candidate.location.scenesFolderId);

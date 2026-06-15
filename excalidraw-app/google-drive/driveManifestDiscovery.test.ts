@@ -5,16 +5,11 @@ import { resolveDriveManifestForPull } from "./driveManifestDiscovery";
 import type { DriveFolderIds, DriveManifest } from "./types";
 
 vi.mock("./api", () => ({
-  readMergedDriveManifest: vi.fn(),
   collectDriveSyncCandidates: vi.fn(),
   listFilesInParent: vi.fn(),
 }));
 
-import {
-  collectDriveSyncCandidates,
-  listFilesInParent,
-  readMergedDriveManifest,
-} from "./api";
+import { collectDriveSyncCandidates, listFilesInParent } from "./api";
 
 const folders: DriveFolderIds = {
   rootId: "root",
@@ -25,7 +20,6 @@ const folders: DriveFolderIds = {
 
 describe("resolveDriveManifestForPull", () => {
   it("discovers scene files when manifest is empty", async () => {
-    vi.mocked(readMergedDriveManifest).mockResolvedValue(null);
     vi.mocked(collectDriveSyncCandidates).mockResolvedValue([]);
     vi.mocked(listFilesInParent).mockResolvedValue([
       {
@@ -56,7 +50,6 @@ describe("resolveDriveManifestForPull", () => {
         },
       ],
     };
-    vi.mocked(readMergedDriveManifest).mockResolvedValue(existing);
     vi.mocked(collectDriveSyncCandidates).mockResolvedValue([
       {
         location: { manifestFolderId: "legacy-vault", scenesFolderId: "legacy-scenes" },

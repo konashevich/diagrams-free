@@ -33,7 +33,6 @@ export const getCachedRemoteManifestAt = (): number | null =>
   cachedRemoteManifestAt;
 
 export const invalidateDriveRemoteManifestCache = (): void => {
-  remotePeekInFlight = null;
   cachedRemoteManifestAt = getDriveRemoteManifestAt();
 };
 

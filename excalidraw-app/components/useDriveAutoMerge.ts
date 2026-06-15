@@ -12,6 +12,7 @@ import {
   notifyDriveAutoMergeSuccess,
   notifyDriveAutoMergeFailed,
   registerDriveLinkedHandler,
+  runDriveMergeSerialized,
   warmDriveAccessToken,
   withDriveAccess,
 } from "../google-drive";
@@ -54,7 +55,9 @@ export const useDriveAutoMerge = ({
           return;
         }
         const result = await withDriveAccess(() =>
-          driveMergeService.mergeVaultWithDrive({ excalidrawAPI }),
+          runDriveMergeSerialized(() =>
+            driveMergeService.mergeVaultWithDrive({ excalidrawAPI }),
+          ),
         );
         lastMergeAtRef.current = Date.now();
         if (
@@ -107,10 +110,12 @@ export const runDriveMergeNow = async (
   confirmActiveSceneReload?: () => Promise<boolean>,
 ) => {
   const result = await withDriveAccess(() =>
-    driveMergeService.mergeVaultWithDrive({
-      excalidrawAPI,
-      confirmActiveSceneReload,
-    }),
+    runDriveMergeSerialized(() =>
+      driveMergeService.mergeVaultWithDrive({
+        excalidrawAPI,
+        confirmActiveSceneReload,
+      }),
+    ),
   );
   return result;
 };
