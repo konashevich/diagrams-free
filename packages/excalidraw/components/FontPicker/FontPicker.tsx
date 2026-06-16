@@ -22,7 +22,7 @@ import "./FontPicker.scss";
 
 export const DEFAULT_FONTS = [
   {
-    value: FONT_FAMILY["Nanum Pen Script"],
+    value: FONT_FAMILY.Caveat,
     icon: FreedrawIcon,
     text: t("labels.handDrawn"),
     testId: "font-family-hand-drawn",

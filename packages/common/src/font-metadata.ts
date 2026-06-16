@@ -33,11 +33,11 @@ export interface FontMetadata {
 }
 
 export const FONT_METADATA: Record<number, FontMetadata> = {
-  [FONT_FAMILY["Nanum Pen Script"]]: {
+  [FONT_FAMILY.Caveat]: {
     metrics: {
       unitsPerEm: 1000,
-      ascender: 800,
-      descender: -200,
+      ascender: 960,
+      descender: -300,
       lineHeight: 1.25,
     },
   },

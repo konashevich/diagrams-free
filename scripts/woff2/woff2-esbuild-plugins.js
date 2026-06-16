@@ -176,7 +176,8 @@ module.exports.woff2ServerPlugin = (options = {}) => {
           const mergedFontPath = path.resolve(outputDir, `${family}.ttf`);
 
           const fallbackFontsPaths = [];
-          const shouldIncludeXiaolaiFallback = family.includes("Excalifont");
+          const shouldIncludeXiaolaiFallback =
+            family.includes("Excalifont") || family.includes("Caveat");
 
           if (shouldIncludeXiaolaiFallback) {
             fallbackFontsPaths.push(xiaolaiPath);

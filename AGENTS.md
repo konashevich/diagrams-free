@@ -2,7 +2,7 @@
 
 Guidance for AI agents working on **diagrams.free** — a fork of [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT). Live site: **[https://diagrams.free](https://diagrams.free)**. Repo: [konashevich/diagrams-free](https://github.com/konashevich/diagrams-free).
 
-This is **not** the official Excalidraw product. The app has been fully rebranded to **diagrams.free** (see [docs/diagrams-free-branding-and-ip-clearance.md](docs/diagrams-free-branding-and-ip-clearance.md)): new logo/favicon/OG assets, **Nanum Pen Script** (Google Font, OFL) as the default hand-drawn font, and removal of Excalidraw trademarks and official cloud backends from production builds.
+This is **not** the official Excalidraw product. The app has been fully rebranded to **diagrams.free** (see [docs/diagrams-free-branding-and-ip-clearance.md](docs/diagrams-free-branding-and-ip-clearance.md)): new logo/favicon/OG assets, **Caveat** (Google Font, OFL) as the default hand-drawn font, and removal of Excalidraw trademarks and official cloud backends from production builds.
 
 ---
 
@@ -17,7 +17,7 @@ Stock Excalidraw keeps one implicit “current scene” in the browser; reset/ne
 - **GitHub Pages hosting** on custom domain **diagrams.free** — static SPA, no app server. See [docs/github-pages-hosting.md](docs/github-pages-hosting.md).
 - **Shape libraries** — browse/install still points at Excalidraw’s public catalog (`libraries.excalidraw.com`); personal libraries stay in the browser. A self-hosted or independent catalog may come later. See [docs/libraries-overview.md](docs/libraries-overview.md).
 - **Google Analytics 4** — production visit statistics via GA4 measurement ID **`G-H31J97S7ZC`** (not diagram content). See [Google Analytics 4](#google-analytics-4-production) below.
-- **Default hand-drawn font** — **Nanum Pen Script** (Google Font, SIL OFL), self-hosted as woff2; replaces upstream Excalifont/Virgil as the canvas default. Excalifont remains in the font picker.
+- **Default hand-drawn font** — **Caveat** (Google Font, SIL OFL), self-hosted as woff2; replaces upstream Excalifont/Virgil as the canvas default. Excalifont remains in the font picker.
 
 Full user-facing summary: [README.md](README.md).
 
@@ -62,17 +62,17 @@ When the flag is `false`, behavior matches upstream Excalidraw.
 
 ## Default hand-drawn font
 
-**Font:** Nanum Pen Script (Google Fonts, SIL OFL)  
-**Source archive:** [docs/Nanum_Pen_Script.zip](docs/Nanum_Pen_Script.zip)  
-**Bundled assets:** `packages/excalidraw/fonts/NanumPenScript/` (`NanumPenScript-Regular.woff2` + `index.ts`)
+**Font:** Caveat (Google Fonts, SIL OFL)  
+**Source archive:** [docs/Caveat.zip](docs/Caveat.zip)  
+**Bundled assets:** `packages/excalidraw/fonts/Caveat/` (`Caveat-Regular.woff2` + `index.ts`)
 
 | Item | Location / value |
 |------|------------------|
-| Font family name | `"Nanum Pen Script"` |
+| Font family name | `"Caveat"` |
 | `FONT_FAMILY` ID | `4` (keep when swapping fonts — existing scenes use this ID) |
 | Default constant | `DEFAULT_FONT_FAMILY` in `packages/common/src/constants.ts` |
 | Metrics | `packages/common/src/font-metadata.ts` |
-| Registration | `packages/excalidraw/fonts/Fonts.ts` → `init("Nanum Pen Script", ...)` |
+| Registration | `packages/excalidraw/fonts/Fonts.ts` → `init("Caveat", ...)` |
 | Font picker default | `packages/excalidraw/components/FontPicker/FontPicker.tsx` |
 | Welcome-screen hints | `packages/excalidraw/components/welcome-screen/WelcomeScreen.scss` (`.excalifont` class) |
 | License attribution | [NOTICE](./NOTICE) |
