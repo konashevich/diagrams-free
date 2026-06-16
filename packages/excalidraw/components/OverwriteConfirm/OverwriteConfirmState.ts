@@ -12,6 +12,8 @@ export type OverwriteConfirmState =
       showSaveToBrowser?: boolean;
       /** After vault backup, run the primary action (e.g. load shared link). */
       proceedOnSaveToBrowser?: boolean;
+      /** After vault backup, clear the canvas and close (e.g. delete-scene dialog). */
+      resetAfterSaveToBrowser?: boolean;
 
       onClose: () => void;
       onConfirm: () => void;
@@ -30,6 +32,7 @@ export async function openConfirmModal({
   color,
   showSaveToBrowser,
   proceedOnSaveToBrowser,
+  resetAfterSaveToBrowser,
 }: {
   title: string;
   description: React.ReactNode;
@@ -37,6 +40,7 @@ export async function openConfirmModal({
   color: "danger" | "warning";
   showSaveToBrowser?: boolean;
   proceedOnSaveToBrowser?: boolean;
+  resetAfterSaveToBrowser?: boolean;
 }) {
   return new Promise<boolean>((resolve) => {
     editorJotaiStore.set(overwriteConfirmStateAtom, {
@@ -50,15 +54,24 @@ export async function openConfirmModal({
       color,
       showSaveToBrowser,
       proceedOnSaveToBrowser,
+      resetAfterSaveToBrowser,
     });
   });
 }
 
-export const confirmOverwriteConfirmModal = (): void => {
+const closeOverwriteConfirmModal = (handler: "onClose" | "onConfirm"): void => {
   const state = editorJotaiStore.get(overwriteConfirmStateAtom);
   if (!state.active) {
     return;
   }
-  state.onConfirm();
+  state[handler]();
   editorJotaiStore.set(overwriteConfirmStateAtom, { active: false });
+};
+
+export const confirmOverwriteConfirmModal = (): void => {
+  closeOverwriteConfirmModal("onConfirm");
+};
+
+export const dismissOverwriteConfirmModal = (): void => {
+  closeOverwriteConfirmModal("onClose");
 };

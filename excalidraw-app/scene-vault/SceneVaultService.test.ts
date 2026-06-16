@@ -241,6 +241,22 @@ describe("SceneVaultService", () => {
     expect(await store.listScenes()).toHaveLength(0);
   });
 
+  it("clearCanvasAfterArchive keeps vault entry and clears active id", async () => {
+    const api = makeAPI({
+      elements: [{ ...rectangleFixture }],
+      appState: {},
+      files: {},
+    });
+
+    await service.archiveCurrentScene(api);
+    expect(await store.listScenes()).toHaveLength(1);
+
+    await service.clearCanvasAfterArchive(api);
+    expect(api.resetScene).toHaveBeenCalled();
+    expect(await store.getActiveSceneId()).toBeNull();
+    expect(await store.listScenes()).toHaveLength(1);
+  });
+
   it("saveCanvasToVault imports the current canvas as a new vault scene", async () => {
     const api = makeAPI({
       elements: [{ ...rectangleFixture }],

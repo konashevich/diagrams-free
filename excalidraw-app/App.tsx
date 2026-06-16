@@ -1329,6 +1329,7 @@ const ExcalidrawWrapper = () => {
                 "This will permanently delete the current scene and clear the canvas. This cannot be undone.",
               actionLabel: "Delete",
               color: "danger",
+              resetAfterSaveToBrowser: true,
             }).then((confirmed) => {
               if (confirmed) {
                 void sceneVaultService

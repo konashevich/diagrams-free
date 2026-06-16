@@ -1,6 +1,7 @@
 import { OverwriteConfirmDialog } from "@excalidraw/excalidraw/components/OverwriteConfirm/OverwriteConfirm";
 import {
   confirmOverwriteConfirmModal,
+  dismissOverwriteConfirmModal,
   overwriteConfirmStateAtom,
 } from "@excalidraw/excalidraw/components/OverwriteConfirm/OverwriteConfirmState";
 import { useAtomValue } from "@excalidraw/excalidraw/editor-jotai";
@@ -24,13 +25,24 @@ export const SaveToBrowserOverwriteAction: React.FC<{
     return null;
   }
 
+  const saveAndReset = overwriteConfirmState.resetAfterSaveToBrowser;
+
   return (
     <OverwriteConfirmDialog.Action
-      title="Save to Browser"
-      actionLabel="Save to Browser"
+      title={saveAndReset ? "Save and reset" : "Save to Browser"}
+      actionLabel={saveAndReset ? "Save and reset" : "Save to Browser"}
       onClick={() => {
         const proceedOnSave = overwriteConfirmState.proceedOnSaveToBrowser;
         void sceneVaultService.archiveCurrentScene(excalidrawAPI).then(() => {
+          if (saveAndReset) {
+            return sceneVaultService
+              .clearCanvasAfterArchive(excalidrawAPI)
+              .then(() => {
+                onSaved?.();
+                dismissOverwriteConfirmModal();
+              });
+          }
+
           onSaved?.();
           if (proceedOnSave) {
             confirmOverwriteConfirmModal();
@@ -38,9 +50,9 @@ export const SaveToBrowserOverwriteAction: React.FC<{
         });
       }}
     >
-      Saves the current scene to browser storage (IndexedDB). You can open it
-      later from My scenes. The data is lost if you clear site data or reinstall
-      the browser.
+      {saveAndReset
+        ? "Saves the current scene to browser storage (IndexedDB), then clears the canvas. You can open it later from My scenes."
+        : "Saves the current scene to browser storage (IndexedDB). You can open it later from My scenes. The data is lost if you clear site data or reinstall the browser."}
     </OverwriteConfirmDialog.Action>
   );
 });

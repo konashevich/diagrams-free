@@ -155,6 +155,15 @@ export class SceneVaultService {
     trackNewCanvas(analyticsSource, hadContent);
   }
 
+  /** Clear the canvas after the scene was archived; keeps the vault entry. */
+  async clearCanvasAfterArchive(api: ExcalidrawImperativeAPI): Promise<void> {
+    assertVaultEditingAllowed();
+    api.resetScene();
+    await this.store.setActiveSceneId(null);
+    LocalData.flushSave();
+    scheduleDeferredDriveBackup();
+  }
+
   /** Clear the canvas and remove the active vault entry without archiving. */
   async resetCanvas(api: ExcalidrawImperativeAPI): Promise<void> {
     assertVaultEditingAllowed();
