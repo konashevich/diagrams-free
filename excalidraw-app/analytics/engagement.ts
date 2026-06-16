@@ -133,7 +133,7 @@ export const hasCanvasBeenUsedThisTab = (): boolean => {
 };
 
 export const trackDonateReminderShown = (
-  trigger: "trigger_60m" | "trigger_second_session",
+  trigger: "trigger_60m" | "trigger_fifth_session",
 ) => {
   trackEngagement("donate_reminder_shown", trigger);
 };

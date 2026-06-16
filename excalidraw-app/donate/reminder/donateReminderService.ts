@@ -28,7 +28,7 @@ export const DONATE_THANKS_TOAST_TTL_MS = 5 * 60 * 1000;
 
 let donateThanksUrlConsumed = false;
 
-export type ReminderTrigger = "trigger_60m" | "trigger_second_session";
+export type ReminderTrigger = "trigger_60m" | "trigger_fifth_session";
 
 export type DonationKind = "once" | "monthly";
 
@@ -38,6 +38,31 @@ export const DONATE_REMINDER_ACTIVE_MS_THRESHOLD = 60 * 60 * 1000;
 /** Tab sessions before the visit-based donation reminder can show. */
 export const DONATE_REMINDER_MIN_SESSION_COUNT = 5;
 
+/** Debounced Drive backup while active time accrues (no sync event — avoids feedback loops). */
+const ACTIVE_MS_DRIVE_SAVE_DEBOUNCE_MS = 5 * 60 * 1000;
+
+let activeMsDriveSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+const scheduleActiveMsDriveSave = (): void => {
+  if (activeMsDriveSaveTimer) {
+    clearTimeout(activeMsDriveSaveTimer);
+  }
+  activeMsDriveSaveTimer = setTimeout(() => {
+    activeMsDriveSaveTimer = null;
+    void saveDonateReminderStateToDrive(readLocalDonateReminderState()).catch(
+      (error) => {
+        console.error("[donate-reminder] Drive active-time save failed:", error);
+      },
+    );
+  }, ACTIVE_MS_DRIVE_SAVE_DEBOUNCE_MS);
+};
+
+export const cancelActiveMsDriveSave = (): void => {
+  if (activeMsDriveSaveTimer) {
+    clearTimeout(activeMsDriveSaveTimer);
+    activeMsDriveSaveTimer = null;
+  }
+};
 const SNOOZE_MS = 30 * 24 * 60 * 60 * 1000;
 const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
@@ -84,7 +109,7 @@ export const getReminderEligibility = (
   state: DonateReminderState,
   options: {
     triggerActiveUseReady: boolean;
-    checkSecondSession: boolean;
+    checkFifthSession: boolean;
   },
 ): ReminderTrigger | null => {
   if (!isDonateEnabled()) {
@@ -96,15 +121,18 @@ export const getReminderEligibility = (
   if (isSameLocalCalendarDay(state.lastReminderShownAt)) {
     return null;
   }
-  if (options.triggerActiveUseReady) {
+  if (
+    options.triggerActiveUseReady &&
+    state.activeMsSinceLastReminder >= DONATE_REMINDER_ACTIVE_MS_THRESHOLD
+  ) {
     return "trigger_60m";
   }
   if (
-    options.checkSecondSession &&
+    options.checkFifthSession &&
     state.sessionCount >= DONATE_REMINDER_MIN_SESSION_COUNT &&
     state.activeMsSinceLastReminder >= DONATE_REMINDER_ACTIVE_MS_THRESHOLD
   ) {
-    return "trigger_second_session";
+    return "trigger_fifth_session";
   }
   return null;
 };
@@ -116,7 +144,31 @@ export const addDonateReminderActiveMs = (ms: number): number => {
   const state = readLocalDonateReminderState();
   const activeMsSinceLastReminder = state.activeMsSinceLastReminder + ms;
   writeLocalDonateReminderState({ ...state, activeMsSinceLastReminder });
+  scheduleActiveMsDriveSave();
   return activeMsSinceLastReminder;
+};
+
+/**
+ * Atomically mark reminder shown if `lastReminderShownAt` still matches
+ * `expectedLastReminderShownAt` (guards cross-tab double-show races).
+ */
+export const tryMarkDonateReminderShownLocal = (
+  expectedLastReminderShownAt: string | null,
+): boolean => {
+  const state = readLocalDonateReminderState();
+  if (state.lastReminderShownAt !== expectedLastReminderShownAt) {
+    return false;
+  }
+  if (isSameLocalCalendarDay(state.lastReminderShownAt)) {
+    return false;
+  }
+  writeLocalDonateReminderState({
+    ...state,
+    lastReminderShownAt: new Date().toISOString(),
+    activeMsSinceLastReminder: 0,
+  });
+  cancelActiveMsDriveSave();
+  return true;
 };
 
 export const bumpDonateReminderSessionCount = (): DonateReminderState => {
@@ -150,6 +202,7 @@ export const markDonateReminderShownLocal = (): void => {
     lastReminderShownAt: new Date().toISOString(),
     activeMsSinceLastReminder: 0,
   });
+  cancelActiveMsDriveSave();
 };
 
 export const persistDonateReminderShownToDrive = async (): Promise<void> => {
@@ -299,6 +352,7 @@ export const syncDonateReminderWithDrive = async (): Promise<void> => {
 
 export const resetDonateReminderStateForTests = (): void => {
   donateThanksUrlConsumed = false;
+  cancelActiveMsDriveSave();
   writeLocalDonateReminderState(createDefaultDonateReminderState());
   try {
     sessionStorage.removeItem(DONATE_REMINDER_SESSION_BUMP_KEY);

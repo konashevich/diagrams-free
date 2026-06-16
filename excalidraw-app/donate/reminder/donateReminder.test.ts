@@ -16,6 +16,7 @@ import {
   isDonateReminderSuppressed,
   markDonateReminderShownLocal,
   resetDonateReminderStateForTests,
+  tryMarkDonateReminderShownLocal,
 } from "./donateReminderService";
 
 vi.mock("../donateConfig", () => ({
@@ -24,7 +25,7 @@ vi.mock("../donateConfig", () => ({
 
 vi.mock("./donateReminderDriveSync", () => ({
   loadDonateReminderStateFromDrive: vi.fn(),
-  saveDonateReminderStateToDrive: vi.fn(),
+  saveDonateReminderStateToDrive: vi.fn().mockResolvedValue(undefined),
 }));
 
 const mockLocation = (search: string) => {
@@ -87,6 +88,25 @@ describe("donateReminderState merge", () => {
     expect(merged.lastReminderShownAt).toBe("2026-06-10T12:00:00.000Z");
   });
 
+  it("uses remote active time when remote has the newer reminder", () => {
+    const local = readLocalDonateReminderState();
+    const merged = mergeDonateReminderState(
+      {
+        ...local,
+        activeMsSinceLastReminder: 3_600_000,
+        lastReminderShownAt: null,
+      },
+      {
+        ...local,
+        activeMsSinceLastReminder: 1_200_000,
+        lastReminderShownAt: "2026-06-10T12:00:00.000Z",
+      },
+    );
+
+    expect(merged.activeMsSinceLastReminder).toBe(1_200_000);
+    expect(merged.lastReminderShownAt).toBe("2026-06-10T12:00:00.000Z");
+  });
+
   it("mergeActiveMsSinceLastReminder keeps max when both share the same reminder", () => {
     const local = readLocalDonateReminderState();
     const remote = {
@@ -131,6 +151,17 @@ describe("active time tracking", () => {
     expect(addDonateReminderActiveMs(0)).toBe(5_000);
     expect(addDonateReminderActiveMs(-1)).toBe(5_000);
   });
+
+  it("tryMarkDonateReminderShownLocal rejects stale expected timestamps", () => {
+    const before = readLocalDonateReminderState();
+    expect(tryMarkDonateReminderShownLocal(before.lastReminderShownAt)).toBe(
+      true,
+    );
+    expect(tryMarkDonateReminderShownLocal(before.lastReminderShownAt)).toBe(
+      false,
+    );
+    expect(tryMarkDonateReminderShownLocal(null)).toBe(false);
+  });
 });
 
 describe("getReminderEligibility", () => {
@@ -143,7 +174,7 @@ describe("getReminderEligibility", () => {
     expect(
       getReminderEligibility(
         { ...state, suppressRecurring: true },
-        { triggerActiveUseReady: true, checkSecondSession: false },
+        { triggerActiveUseReady: true, checkFifthSession: false },
       ),
     ).toBeNull();
 
@@ -153,12 +184,12 @@ describe("getReminderEligibility", () => {
           ...state,
           lastReminderShownAt: new Date().toISOString(),
         },
-        { triggerActiveUseReady: false, checkSecondSession: true },
+        { triggerActiveUseReady: false, checkFifthSession: true },
       ),
     ).toBeNull();
   });
 
-  it("allows trigger B from session count plus active time and trigger A directly", () => {
+  it("allows trigger B from session count plus active time", () => {
     const state = readLocalDonateReminderState();
     expect(
       getReminderEligibility(
@@ -167,7 +198,7 @@ describe("getReminderEligibility", () => {
           sessionCount: DONATE_REMINDER_MIN_SESSION_COUNT,
           activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD - 1,
         },
-        { triggerActiveUseReady: false, checkSecondSession: true },
+        { triggerActiveUseReady: false, checkFifthSession: true },
       ),
     ).toBeNull();
     expect(
@@ -177,7 +208,7 @@ describe("getReminderEligibility", () => {
           sessionCount: DONATE_REMINDER_MIN_SESSION_COUNT - 1,
           activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
         },
-        { triggerActiveUseReady: false, checkSecondSession: true },
+        { triggerActiveUseReady: false, checkFifthSession: true },
       ),
     ).toBeNull();
     expect(
@@ -187,15 +218,27 @@ describe("getReminderEligibility", () => {
           sessionCount: DONATE_REMINDER_MIN_SESSION_COUNT,
           activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
         },
-        { triggerActiveUseReady: false, checkSecondSession: true },
+        { triggerActiveUseReady: false, checkFifthSession: true },
       ),
-    ).toBe("trigger_second_session");
+    ).toBe("trigger_fifth_session");
+  });
 
+  it("allows trigger A only with enough cumulative active time", () => {
+    const state = readLocalDonateReminderState();
     expect(
       getReminderEligibility(state, {
         triggerActiveUseReady: true,
-        checkSecondSession: false,
+        checkFifthSession: false,
       }),
+    ).toBeNull();
+    expect(
+      getReminderEligibility(
+        {
+          ...state,
+          activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
+        },
+        { triggerActiveUseReady: true, checkFifthSession: false },
+      ),
     ).toBe("trigger_60m");
   });
 });
