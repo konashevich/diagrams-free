@@ -139,18 +139,24 @@
   }
 
   .scene-vault-dialog__drive {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     margin: 0 0 1rem;
     padding: 0.75rem 1rem;
     border: 1px solid var(--color-border-outline-variant);
     border-radius: var(--border-radius-md);
     background: var(--color-surface-low);
+    text-align: center;
   }
 
   .scene-vault-dialog__drive-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    flex-wrap: wrap;
     gap: 0.75rem;
+    width: 100%;
     margin-bottom: 0.5rem;
   }
 
@@ -204,7 +210,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    text-align: right;
+    text-align: center;
   }
 
   .scene-vault-dialog__drive-hint,
@@ -212,16 +218,24 @@
     margin: 0 0 0.5rem;
     font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
+    width: 100%;
+  }
+
+  .scene-vault-dialog__drive .scene-vault-dialog__error {
+    width: 100%;
+    text-align: center;
   }
 
   .scene-vault-dialog__drive-sync-report {
     margin: 0 0 0.5rem;
     font-size: var(--font-size-sm);
+    width: 100%;
 
     summary {
       cursor: pointer;
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: 0.35rem;
       font-weight: 500;
       color: var(--color-text-primary);
@@ -254,7 +268,7 @@
 
     .scene-vault-dialog__drive-meta {
       margin-top: 0.35rem;
-      padding-left: 1rem;
+      padding-left: 0;
 
       &:last-child {
         margin-bottom: 0;
@@ -266,14 +280,18 @@
     display: flex;
     gap: 0.5rem;
     align-items: center;
+    justify-content: center;
     margin: 0.5rem 0;
     font-size: 0.875rem;
     cursor: pointer;
+    width: 100%;
   }
 
   .scene-vault-dialog__drive-actions {
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
     gap: 0.5rem;
+    width: 100%;
   }
 }
