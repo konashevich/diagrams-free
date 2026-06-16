@@ -6,8 +6,10 @@ export const DONATE_REMINDER_SESSION_BUMP_KEY =
 
 export type DonateReminderState = {
   schema: 1;
-  /** Browsing sessions (tab sessions), not page refreshes — see bumpDonateReminderSessionCount. */
+  /** Lifetime tab sessions (analytics / Drive merge). */
   sessionCount: number;
+  /** Tab sessions since the last reminder was shown. */
+  sessionsSinceLastReminder: number;
   /** Tab-visible active time (ms) since the last reminder was shown. */
   activeMsSinceLastReminder: number;
   lastReminderShownAt: string | null;
@@ -20,6 +22,7 @@ export type DonateReminderState = {
 export const createDefaultDonateReminderState = (): DonateReminderState => ({
   schema: 1,
   sessionCount: 0,
+  sessionsSinceLastReminder: 0,
   activeMsSinceLastReminder: 0,
   lastReminderShownAt: null,
   snoozeUntil: null,
@@ -41,6 +44,11 @@ const parseState = (raw: unknown): DonateReminderState | null => {
     sessionCount:
       typeof data.sessionCount === "number" && data.sessionCount >= 0
         ? data.sessionCount
+        : 0,
+    sessionsSinceLastReminder:
+      typeof data.sessionsSinceLastReminder === "number" &&
+      data.sessionsSinceLastReminder >= 0
+        ? data.sessionsSinceLastReminder
         : 0,
     activeMsSinceLastReminder:
       typeof data.activeMsSinceLastReminder === "number" &&
@@ -94,17 +102,15 @@ const laterIso = (a: string | null, b: string | null): string | null => {
 const reminderShownAtMs = (iso: string | null): number =>
   iso ? new Date(iso).getTime() : 0;
 
-/** Keep active time only from the side that matches the latest reminder show. */
-export const mergeActiveMsSinceLastReminder = (
+/** Keep per-reminder counters from the side that matches the latest reminder show. */
+export const mergeCounterSinceLastReminder = (
   local: DonateReminderState,
   remote: DonateReminderState,
   mergedLastReminderShownAt: string | null,
+  pick: (state: DonateReminderState) => number,
 ): number => {
   if (!mergedLastReminderShownAt) {
-    return Math.max(
-      local.activeMsSinceLastReminder,
-      remote.activeMsSinceLastReminder,
-    );
+    return Math.max(pick(local), pick(remote));
   }
 
   const mergedMs = reminderShownAtMs(mergedLastReminderShownAt);
@@ -112,19 +118,40 @@ export const mergeActiveMsSinceLastReminder = (
   const remoteMs = reminderShownAtMs(remote.lastReminderShownAt);
 
   if (localMs === mergedMs && remoteMs === mergedMs) {
-    return Math.max(
-      local.activeMsSinceLastReminder,
-      remote.activeMsSinceLastReminder,
-    );
+    return Math.max(pick(local), pick(remote));
   }
   if (localMs === mergedMs) {
-    return local.activeMsSinceLastReminder;
+    return pick(local);
   }
   if (remoteMs === mergedMs) {
-    return remote.activeMsSinceLastReminder;
+    return pick(remote);
   }
   return 0;
 };
+
+export const mergeActiveMsSinceLastReminder = (
+  local: DonateReminderState,
+  remote: DonateReminderState,
+  mergedLastReminderShownAt: string | null,
+): number =>
+  mergeCounterSinceLastReminder(
+    local,
+    remote,
+    mergedLastReminderShownAt,
+    (state) => state.activeMsSinceLastReminder,
+  );
+
+export const mergeSessionsSinceLastReminder = (
+  local: DonateReminderState,
+  remote: DonateReminderState,
+  mergedLastReminderShownAt: string | null,
+): number =>
+  mergeCounterSinceLastReminder(
+    local,
+    remote,
+    mergedLastReminderShownAt,
+    (state) => state.sessionsSinceLastReminder,
+  );
 
 export const mergeDonateReminderState = (
   local: DonateReminderState,
@@ -140,6 +167,11 @@ export const mergeDonateReminderState = (
   return {
     schema: 1,
     sessionCount: Math.max(local.sessionCount, remote.sessionCount),
+    sessionsSinceLastReminder: mergeSessionsSinceLastReminder(
+      local,
+      remote,
+      lastReminderShownAt,
+    ),
     activeMsSinceLastReminder: mergeActiveMsSinceLastReminder(
       local,
       remote,

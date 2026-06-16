@@ -22,15 +22,14 @@ import {
   applyDonateReminderSnoozeMonth,
   bumpDonateReminderSessionCount,
   consumeDonateThanksUrl,
-  DONATE_REMINDER_MIN_SESSION_COUNT,
   DONATE_REMINDER_STATE_SYNCED_EVENT,
   getReminderEligibility,
+  getReminderEligibilityWithPendingMs,
   isDonateReminderShownToday,
   isDonateReminderSuppressed,
   persistDonateReminderShownToDrive,
   prepareDonateReminderState,
   tryMarkDonateReminderShownLocal,
-  type ReminderTrigger,
 } from "./donateReminderService";
 import {
   DONATE_REMINDER_STORAGE_KEY,
@@ -51,11 +50,8 @@ const noop = () => {};
 export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
   const [isOpen, setIsOpen] = useState(false);
   const [ready, setReady] = useState(!isDonateEnabled());
-  const sessionActiveMsRef = useRef(0);
   const pendingActiveMsRef = useRef(0);
   const timerRunningRef = useRef(false);
-  const activeUseTriggerFiredRef = useRef(false);
-  const sessionTriggerFiredRef = useRef(false);
   const isOpenRef = useRef(false);
   const tickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dayWatchdogIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
@@ -87,67 +83,39 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
     return addDonateReminderActiveMs(pending);
   }, []);
 
-  const blockTriggersForToday = useCallback(() => {
-    const state = readLocalDonateReminderState();
-    if (isDonateReminderShownToday(state)) {
-      activeUseTriggerFiredRef.current = true;
-      sessionTriggerFiredRef.current = true;
+  const showReminder = useCallback((): boolean => {
+    if (isOpenRef.current) {
+      return false;
     }
-  }, []);
-
-  const resetTriggerRefsForNewDay = useCallback(() => {
-    const state = readLocalDonateReminderState();
-    if (!isDonateReminderShownToday(state)) {
-      activeUseTriggerFiredRef.current = false;
-      sessionTriggerFiredRef.current = false;
+    flushPendingActiveMs();
+    const stateBefore = readLocalDonateReminderState();
+    const trigger = getReminderEligibility(stateBefore);
+    if (!trigger) {
+      return false;
     }
-  }, []);
+    if (!tryMarkDonateReminderShownLocal(stateBefore.lastReminderShownAt)) {
+      return false;
+    }
+    trackDonateReminderShown(trigger);
+    void persistDonateReminderShownToDrive();
+    setIsOpen(true);
+    return true;
+  }, [flushPendingActiveMs]);
 
-  const showReminder = useCallback(
-    (trigger: ReminderTrigger): boolean => {
-      if (isOpenRef.current) {
-        return false;
-      }
-      flushPendingActiveMs();
-      const stateBefore = readLocalDonateReminderState();
-      const eligible = getReminderEligibility(stateBefore, {
-        triggerActiveUseReady: trigger === "trigger_60m",
-        checkFifthSession: trigger === "trigger_fifth_session",
-      });
-      if (!eligible) {
-        blockTriggersForToday();
-        return false;
-      }
-      if (
-        !tryMarkDonateReminderShownLocal(stateBefore.lastReminderShownAt)
-      ) {
-        blockTriggersForToday();
-        return false;
-      }
-      sessionActiveMsRef.current = 0;
-      trackDonateReminderShown(trigger);
-      void persistDonateReminderShownToDrive();
-      setIsOpen(true);
-      blockTriggersForToday();
-      return true;
-    },
-    [blockTriggersForToday, flushPendingActiveMs],
-  );
-
-  const trySessionTrigger = useCallback(() => {
+  const tryReminderTrigger = useCallback(() => {
     if (!hasCanvasBeenUsedThisTab()) {
       return;
     }
-    if (sessionTriggerFiredRef.current) {
-      return;
-    }
     const state = readLocalDonateReminderState();
-    if (state.sessionCount < DONATE_REMINDER_MIN_SESSION_COUNT) {
+    if (
+      getReminderEligibilityWithPendingMs(
+        state,
+        pendingActiveMsRef.current,
+      ) === null
+    ) {
       return;
     }
-    if (showReminder("trigger_fifth_session")) {
-      sessionTriggerFiredRef.current = true;
-    }
+    showReminder();
   }, [showReminder]);
 
   const stopTimer = useCallback(() => {
@@ -163,8 +131,6 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
   stopTimerRef.current = stopTimer;
 
   const runTimerTick = useCallback(() => {
-    resetTriggerRefsForNewDay();
-
     const state = readLocalDonateReminderState();
     if (isDonateReminderSuppressed(state)) {
       stopTimerRef.current();
@@ -173,12 +139,8 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
 
     const tick = advanceDonateReminderTick({
       visibilityState: document.visibilityState,
-      hasFocus: document.hasFocus(),
       state,
-      sessionActiveMs: sessionActiveMsRef.current,
       pendingActiveMs: pendingActiveMsRef.current,
-      activeUseTriggerFired: activeUseTriggerFiredRef.current,
-      sessionTriggerFired: sessionTriggerFiredRef.current,
       canvasUsedThisTab: hasCanvasBeenUsedThisTab(),
       tickMs: TIMER_TICK_MS,
     });
@@ -187,7 +149,6 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
       return;
     }
 
-    sessionActiveMsRef.current = tick.sessionActiveMs;
     pendingActiveMsRef.current = tick.pendingActiveMs;
 
     const now = Date.now();
@@ -198,22 +159,10 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
       flushPendingActiveMs();
     }
 
-    if (tick.attemptTrigger60m) {
-      if (showReminder("trigger_60m")) {
-        activeUseTriggerFiredRef.current = true;
-      }
-      return;
+    if (tick.attemptReminder) {
+      tryReminderTrigger();
     }
-
-    if (tick.attemptFifthSession) {
-      trySessionTrigger();
-    }
-  }, [
-    flushPendingActiveMs,
-    resetTriggerRefsForNewDay,
-    showReminder,
-    trySessionTrigger,
-  ]);
+  }, [flushPendingActiveMs, tryReminderTrigger]);
 
   const runTimerTickRef = useRef(runTimerTick);
   runTimerTickRef.current = runTimerTick;
@@ -240,16 +189,20 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
       stopTimerRef.current();
       return;
     }
-    resetTriggerRefsForNewDay();
     startActiveTimer();
-  }, [resetTriggerRefsForNewDay, startActiveTimer]);
+  }, [startActiveTimer]);
 
   const onReminderStateExternalChange = useCallback(() => {
-    resetTriggerRefsForNewDay();
-    blockTriggersForToday();
+    if (isDonateReminderSuppressed(readLocalDonateReminderState())) {
+      stopTimerRef.current();
+      return;
+    }
+    if (isDonateReminderShownToday(readLocalDonateReminderState())) {
+      return;
+    }
     maybeStartActiveTimer();
-    trySessionTrigger();
-  }, [blockTriggersForToday, maybeStartActiveTimer, resetTriggerRefsForNewDay, trySessionTrigger]);
+    tryReminderTrigger();
+  }, [maybeStartActiveTimer, tryReminderTrigger]);
 
   const onReminderStateExternalChangeRef = useRef(onReminderStateExternalChange);
   onReminderStateExternalChangeRef.current = onReminderStateExternalChange;
@@ -260,11 +213,8 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
   const maybeStartActiveTimerRef = useRef(maybeStartActiveTimer);
   maybeStartActiveTimerRef.current = maybeStartActiveTimer;
 
-  const trySessionTriggerRef = useRef(trySessionTrigger);
-  trySessionTriggerRef.current = trySessionTrigger;
-
-  const resetTriggerRefsForNewDayRef = useRef(resetTriggerRefsForNewDay);
-  resetTriggerRefsForNewDayRef.current = resetTriggerRefsForNewDay;
+  const tryReminderTriggerRef = useRef(tryReminderTrigger);
+  tryReminderTriggerRef.current = tryReminderTrigger;
 
   useEffect(() => {
     if (!isDonateEnabled()) {
@@ -287,9 +237,8 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
       return;
     }
 
-    resetTriggerRefsForNewDayRef.current();
     bumpDonateReminderSessionCount();
-    trySessionTriggerRef.current();
+    tryReminderTriggerRef.current();
 
     const onVisibilityChange = () => {
       if (document.visibilityState !== "visible") {
@@ -333,6 +282,9 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
 
     dayWatchdogIntervalRef.current = setInterval(() => {
       if (document.visibilityState !== "visible") {
+        return;
+      }
+      if (isDonateReminderSuppressed(readLocalDonateReminderState())) {
         return;
       }
       onReminderStateExternalChangeRef.current();

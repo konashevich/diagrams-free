@@ -11,6 +11,7 @@ import {
   DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
   DONATE_REMINDER_MIN_SESSION_COUNT,
   DONATE_THANKS_TOAST_KEY,
+  flushDonateReminderActiveMsToDrive,
   getReminderEligibility,
   isDonateReminderShownToday,
   isDonateReminderSuppressed,
@@ -26,6 +27,15 @@ vi.mock("../donateConfig", () => ({
 vi.mock("./donateReminderDriveSync", () => ({
   loadDonateReminderStateFromDrive: vi.fn(),
   saveDonateReminderStateToDrive: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../../google-drive/auth", () => ({
+  hydrateDriveAuthSession: vi.fn().mockResolvedValue(undefined),
+  isGoogleDriveLinked: vi.fn(() => false),
+}));
+
+vi.mock("../../google-drive/constants", () => ({
+  isGoogleDriveEnabled: vi.fn(() => false),
 }));
 
 const mockLocation = (search: string) => {
@@ -142,6 +152,7 @@ describe("active time tracking", () => {
 
     const state = readLocalDonateReminderState();
     expect(state.activeMsSinceLastReminder).toBe(0);
+    expect(state.sessionsSinceLastReminder).toBe(0);
     expect(state.lastReminderShownAt).not.toBeNull();
     expect(isDonateReminderShownToday(state)).toBe(true);
   });
@@ -164,6 +175,46 @@ describe("active time tracking", () => {
   });
 });
 
+describe("flushDonateReminderActiveMsToDrive", () => {
+  beforeEach(() => {
+    resetDonateReminderStateForTests();
+  });
+
+  it("no-ops when Google Drive is disabled", async () => {
+    const { loadDonateReminderStateFromDrive, saveDonateReminderStateToDrive } =
+      await import("./donateReminderDriveSync");
+
+    await flushDonateReminderActiveMsToDrive();
+
+    expect(loadDonateReminderStateFromDrive).not.toHaveBeenCalled();
+    expect(saveDonateReminderStateToDrive).not.toHaveBeenCalled();
+  });
+
+  it("merges with remote before saving when Drive is linked", async () => {
+    const { isGoogleDriveEnabled } = await import("../../google-drive/constants");
+    const { isGoogleDriveLinked } = await import("../../google-drive/auth");
+    const { loadDonateReminderStateFromDrive, saveDonateReminderStateToDrive } =
+      await import("./donateReminderDriveSync");
+
+    vi.mocked(isGoogleDriveEnabled).mockReturnValue(true);
+    vi.mocked(isGoogleDriveLinked).mockReturnValue(true);
+    vi.mocked(loadDonateReminderStateFromDrive).mockResolvedValue({
+      ...readLocalDonateReminderState(),
+      sessionCount: 9,
+      activeMsSinceLastReminder: 1_000,
+    });
+
+    addDonateReminderActiveMs(5_000);
+
+    await flushDonateReminderActiveMsToDrive();
+
+    const saved = vi.mocked(saveDonateReminderStateToDrive).mock.calls.at(-1)?.[0];
+    expect(saved?.sessionCount).toBe(9);
+    expect(saved?.activeMsSinceLastReminder).toBe(5_000);
+    expect(readLocalDonateReminderState().sessionCount).toBe(9);
+  });
+});
+
 describe("getReminderEligibility", () => {
   beforeEach(() => {
     resetDonateReminderStateForTests();
@@ -172,74 +223,62 @@ describe("getReminderEligibility", () => {
   it("blocks when suppressed or already shown today", () => {
     const state = readLocalDonateReminderState();
     expect(
-      getReminderEligibility(
-        { ...state, suppressRecurring: true },
-        { triggerActiveUseReady: true, checkFifthSession: false },
-      ),
+      getReminderEligibility({ ...state, suppressRecurring: true }),
     ).toBeNull();
 
     expect(
-      getReminderEligibility(
-        {
-          ...state,
-          lastReminderShownAt: new Date().toISOString(),
-        },
-        { triggerActiveUseReady: false, checkFifthSession: true },
-      ),
+      getReminderEligibility({
+        ...state,
+        lastReminderShownAt: new Date().toISOString(),
+        activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
+      }),
     ).toBeNull();
   });
 
-  it("allows trigger B from session count plus active time", () => {
+  it("first reminder needs only 60 minutes", () => {
     const state = readLocalDonateReminderState();
+    expect(getReminderEligibility(state)).toBeNull();
     expect(
-      getReminderEligibility(
-        {
-          ...state,
-          sessionCount: DONATE_REMINDER_MIN_SESSION_COUNT,
-          activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD - 1,
-        },
-        { triggerActiveUseReady: false, checkFifthSession: true },
-      ),
-    ).toBeNull();
-    expect(
-      getReminderEligibility(
-        {
-          ...state,
-          sessionCount: DONATE_REMINDER_MIN_SESSION_COUNT - 1,
-          activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
-        },
-        { triggerActiveUseReady: false, checkFifthSession: true },
-      ),
-    ).toBeNull();
-    expect(
-      getReminderEligibility(
-        {
-          ...state,
-          sessionCount: DONATE_REMINDER_MIN_SESSION_COUNT,
-          activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
-        },
-        { triggerActiveUseReady: false, checkFifthSession: true },
-      ),
-    ).toBe("trigger_fifth_session");
-  });
-
-  it("allows trigger A only with enough cumulative active time", () => {
-    const state = readLocalDonateReminderState();
-    expect(
-      getReminderEligibility(state, {
-        triggerActiveUseReady: true,
-        checkFifthSession: false,
+      getReminderEligibility({
+        ...state,
+        sessionsSinceLastReminder: 10,
+        activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD - 1,
       }),
     ).toBeNull();
     expect(
-      getReminderEligibility(
-        {
-          ...state,
-          activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
-        },
-        { triggerActiveUseReady: true, checkFifthSession: false },
-      ),
+      getReminderEligibility({
+        ...state,
+        activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
+      }),
     ).toBe("trigger_60m");
+  });
+
+  it("regular reminder needs 5 sessions and 60 minutes since last show", () => {
+    const afterFirst = {
+      ...readLocalDonateReminderState(),
+      lastReminderShownAt: "2026-01-01T00:00:00.000Z",
+    };
+    expect(
+      getReminderEligibility({
+        ...afterFirst,
+        sessionsSinceLastReminder: DONATE_REMINDER_MIN_SESSION_COUNT,
+        activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD - 1,
+      }),
+    ).toBeNull();
+    expect(
+      getReminderEligibility({
+        ...afterFirst,
+        sessionsSinceLastReminder: DONATE_REMINDER_MIN_SESSION_COUNT - 1,
+        activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
+      }),
+    ).toBeNull();
+    expect(
+      getReminderEligibility({
+        ...afterFirst,
+        sessionsSinceLastReminder: DONATE_REMINDER_MIN_SESSION_COUNT,
+        activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
+      }),
+    ).toBe("trigger_fifth_session");
   });
 });
 

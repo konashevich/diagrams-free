@@ -49,12 +49,28 @@ const scheduleActiveMsDriveSave = (): void => {
   }
   activeMsDriveSaveTimer = setTimeout(() => {
     activeMsDriveSaveTimer = null;
-    void saveDonateReminderStateToDrive(readLocalDonateReminderState()).catch(
-      (error) => {
-        console.error("[donate-reminder] Drive active-time save failed:", error);
-      },
-    );
+    void flushDonateReminderActiveMsToDrive();
   }, ACTIVE_MS_DRIVE_SAVE_DEBOUNCE_MS);
+};
+
+/** Merge local active time with Drive before save (no sync event — avoids feedback loops). */
+export const flushDonateReminderActiveMsToDrive = async (): Promise<void> => {
+  if (!isDonateEnabled() || !isGoogleDriveEnabled()) {
+    return;
+  }
+  await hydrateDriveAuthSession();
+  if (!isGoogleDriveLinked()) {
+    return;
+  }
+  try {
+    const remote = await loadDonateReminderStateFromDrive();
+    const local = readLocalDonateReminderState();
+    const merged = mergeDonateReminderState(local, remote);
+    writeLocalDonateReminderState(merged);
+    await saveDonateReminderStateToDrive(merged);
+  } catch (error) {
+    console.error("[donate-reminder] Drive active-time save failed:", error);
+  }
 };
 
 export const cancelActiveMsDriveSave = (): void => {
@@ -107,10 +123,6 @@ export const isDonateReminderSuppressed = (
 
 export const getReminderEligibility = (
   state: DonateReminderState,
-  options: {
-    triggerActiveUseReady: boolean;
-    checkFifthSession: boolean;
-  },
 ): ReminderTrigger | null => {
   if (!isDonateEnabled()) {
     return null;
@@ -121,21 +133,28 @@ export const getReminderEligibility = (
   if (isSameLocalCalendarDay(state.lastReminderShownAt)) {
     return null;
   }
-  if (
-    options.triggerActiveUseReady &&
-    state.activeMsSinceLastReminder >= DONATE_REMINDER_ACTIVE_MS_THRESHOLD
-  ) {
+  if (state.activeMsSinceLastReminder < DONATE_REMINDER_ACTIVE_MS_THRESHOLD) {
+    return null;
+  }
+  if (state.lastReminderShownAt === null) {
     return "trigger_60m";
   }
-  if (
-    options.checkFifthSession &&
-    state.sessionCount >= DONATE_REMINDER_MIN_SESSION_COUNT &&
-    state.activeMsSinceLastReminder >= DONATE_REMINDER_ACTIVE_MS_THRESHOLD
-  ) {
+  if (state.sessionsSinceLastReminder >= DONATE_REMINDER_MIN_SESSION_COUNT) {
     return "trigger_fifth_session";
   }
   return null;
 };
+
+/** Eligibility using persisted + pending active ms (timer tick / pre-flush). */
+export const getReminderEligibilityWithPendingMs = (
+  state: DonateReminderState,
+  pendingActiveMs: number,
+): ReminderTrigger | null =>
+  getReminderEligibility({
+    ...state,
+    activeMsSinceLastReminder:
+      state.activeMsSinceLastReminder + Math.max(0, pendingActiveMs),
+  });
 
 export const addDonateReminderActiveMs = (ms: number): number => {
   if (ms <= 0) {
@@ -166,6 +185,7 @@ export const tryMarkDonateReminderShownLocal = (
     ...state,
     lastReminderShownAt: new Date().toISOString(),
     activeMsSinceLastReminder: 0,
+    sessionsSinceLastReminder: 0,
   });
   cancelActiveMsDriveSave();
   return true;
@@ -181,7 +201,11 @@ export const bumpDonateReminderSessionCount = (): DonateReminderState => {
     // continue
   }
   const state = readLocalDonateReminderState();
-  const next = { ...state, sessionCount: state.sessionCount + 1 };
+  const next = {
+    ...state,
+    sessionCount: state.sessionCount + 1,
+    sessionsSinceLastReminder: state.sessionsSinceLastReminder + 1,
+  };
   writeLocalDonateReminderState(next);
   return next;
 };
@@ -201,6 +225,7 @@ export const markDonateReminderShownLocal = (): void => {
     ...state,
     lastReminderShownAt: new Date().toISOString(),
     activeMsSinceLastReminder: 0,
+    sessionsSinceLastReminder: 0,
   });
   cancelActiveMsDriveSave();
 };
