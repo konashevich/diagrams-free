@@ -81,8 +81,10 @@ export class SceneVaultService {
     api: ExcalidrawImperativeAPI,
   ): Promise<VaultScene | null> {
     assertVaultEditingAllowed();
-    await this.flushBeforeVaultIO(api);
-    return this.persistActiveCanvas(api);
+    await this.flushBeforeVaultIO(api, { skipDrive: true });
+    const scene = await this.persistActiveCanvas(api);
+    scheduleDeferredDriveBackup();
+    return scene;
   }
 
   async openScene(
@@ -143,12 +145,13 @@ export class SceneVaultService {
     analyticsSource: NewCanvasAnalyticsSource = "menu",
   ): Promise<void> {
     assertVaultEditingAllowed();
-    await this.flushBeforeVaultIO(api);
+    await this.flushBeforeVaultIO(api, { skipDrive: true });
     const hadContent = isSceneNonEmpty(captureSceneFromAPICloned(api));
     await this.persistActiveCanvas(api);
     api.resetScene();
     await this.store.setActiveSceneId(null);
     LocalData.flushSave();
+    scheduleDeferredDriveBackup();
     trackNewCanvas(analyticsSource, hadContent);
   }
 
@@ -157,12 +160,13 @@ export class SceneVaultService {
     assertVaultEditingAllowed();
     cancelVaultSync();
     const activeId = await this.store.getActiveSceneId();
+    api.resetScene();
+    await this.store.setActiveSceneId(null);
     if (activeId) {
       await this.store.deleteScene(activeId);
     }
-    api.resetScene();
-    await this.store.setActiveSceneId(null);
     LocalData.flushSave();
+    scheduleDeferredDriveBackup();
   }
 
   async deleteScene(
