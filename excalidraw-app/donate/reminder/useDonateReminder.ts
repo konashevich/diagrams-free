@@ -24,7 +24,9 @@ import {
   consumeDonateThanksUrl,
   DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
   DONATE_REMINDER_MIN_SESSION_COUNT,
+  DONATE_REMINDER_STATE_SYNCED_EVENT,
   getReminderEligibility,
+  isDonateReminderShownToday,
   markDonateReminderShownLocal,
   persistDonateReminderShownToDrive,
   prepareDonateReminderState,
@@ -85,24 +87,37 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
     return persisted + pendingActiveMsRef.current;
   }, []);
 
-  const showReminder = useCallback((trigger: ReminderTrigger) => {
-    if (isOpenRef.current) {
-      return;
-    }
-    flushPendingActiveMs();
+  const resetTriggerRefsForNewDay = useCallback(() => {
     const state = readLocalDonateReminderState();
-    const eligible = getReminderEligibility(state, {
-      triggerActiveUseReady: trigger === "trigger_60m",
-      checkSecondSession: trigger === "trigger_second_session",
-    });
-    if (!eligible) {
-      return;
+    if (!isDonateReminderShownToday(state)) {
+      activeUseTriggerFiredRef.current = false;
+      sessionTriggerFiredRef.current = false;
     }
-    markDonateReminderShownLocal();
-    trackDonateReminderShown(trigger);
-    void persistDonateReminderShownToDrive();
-    setIsOpen(true);
-  }, [flushPendingActiveMs]);
+  }, []);
+
+  const showReminder = useCallback(
+    (trigger: ReminderTrigger): boolean => {
+      if (isOpenRef.current) {
+        return false;
+      }
+      flushPendingActiveMs();
+      const state = readLocalDonateReminderState();
+      const eligible = getReminderEligibility(state, {
+        triggerActiveUseReady: trigger === "trigger_60m",
+        checkSecondSession: trigger === "trigger_second_session",
+      });
+      if (!eligible) {
+        return false;
+      }
+      markDonateReminderShownLocal();
+      sessionActiveMsRef.current = 0;
+      trackDonateReminderShown(trigger);
+      void persistDonateReminderShownToDrive();
+      setIsOpen(true);
+      return true;
+    },
+    [flushPendingActiveMs],
+  );
 
   const trySessionTrigger = useCallback(() => {
     if (sessionTriggerFiredRef.current) {
@@ -115,8 +130,9 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
     if (state.sessionCount < DONATE_REMINDER_MIN_SESSION_COUNT) {
       return;
     }
-    sessionTriggerFiredRef.current = true;
-    showReminder("trigger_second_session");
+    if (showReminder("trigger_second_session")) {
+      sessionTriggerFiredRef.current = true;
+    }
   }, [getAccumulatedActiveMs, showReminder]);
 
   const stopTimer = useCallback(() => {
@@ -134,6 +150,8 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
     }
     timerRunningRef.current = true;
     tickIntervalRef.current = setInterval(() => {
+      resetTriggerRefsForNewDay();
+
       if (!visibilityVisibleRef.current) {
         return;
       }
@@ -152,15 +170,21 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
         !activeUseTriggerFiredRef.current &&
         sessionActiveMsRef.current >= DONATE_REMINDER_ACTIVE_MS_THRESHOLD
       ) {
-        activeUseTriggerFiredRef.current = true;
-        stopTimer();
-        showReminder("trigger_60m");
+        if (showReminder("trigger_60m")) {
+          activeUseTriggerFiredRef.current = true;
+        }
         return;
       }
 
       trySessionTrigger();
     }, TIMER_TICK_MS);
-  }, [flushPendingActiveMs, showReminder, stopTimer, trySessionTrigger]);
+  }, [
+    flushPendingActiveMs,
+    resetTriggerRefsForNewDay,
+    showReminder,
+    stopTimer,
+    trySessionTrigger,
+  ]);
 
   useEffect(() => {
     if (!isDonateEnabled()) {
@@ -183,6 +207,7 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
       return;
     }
 
+    resetTriggerRefsForNewDay();
     bumpDonateReminderSessionCount();
     trySessionTrigger();
 
@@ -191,9 +216,32 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
       visibilityVisibleRef.current = visible;
       if (!visible) {
         flushPendingActiveMs();
+        return;
       }
+      resetTriggerRefsForNewDay();
+      if (hasCanvasBeenUsedThisTab()) {
+        startActiveTimer();
+      }
+      trySessionTrigger();
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
+
+    const onPageHide = () => {
+      flushPendingActiveMs();
+    };
+    window.addEventListener("pagehide", onPageHide);
+
+    const onStateSynced = () => {
+      resetTriggerRefsForNewDay();
+      if (hasCanvasBeenUsedThisTab()) {
+        startActiveTimer();
+      }
+      trySessionTrigger();
+    };
+    window.addEventListener(
+      DONATE_REMINDER_STATE_SYNCED_EVENT,
+      onStateSynced,
+    );
 
     const onCanvasUsed = () => {
       startActiveTimer();
@@ -205,12 +253,18 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener(
+        DONATE_REMINDER_STATE_SYNCED_EVENT,
+        onStateSynced,
+      );
       window.removeEventListener(CANVAS_USED_SESSION_EVENT, onCanvasUsed);
       stopTimer();
     };
   }, [
     ready,
     flushPendingActiveMs,
+    resetTriggerRefsForNewDay,
     showReminder,
     startActiveTimer,
     stopTimer,

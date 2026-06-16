@@ -18,6 +18,9 @@ import {
   saveDonateReminderStateToDrive,
 } from "./donateReminderDriveSync";
 
+export const DONATE_REMINDER_STATE_SYNCED_EVENT =
+  "diagrams-free-donate-reminder-state-synced";
+
 export const DONATE_THANKS_TOAST_KEY = "diagrams-free-donate-thanks-toast";
 
 /** Drop a queued thank-you toast if the editor never becomes ready. */
@@ -57,6 +60,10 @@ const isSameLocalCalendarDay = (iso: string | null): boolean => {
     d.getDate() === now.getDate()
   );
 };
+
+export const isDonateReminderShownToday = (
+  state: DonateReminderState,
+): boolean => isSameLocalCalendarDay(state.lastReminderShownAt);
 
 export const isDonateReminderSuppressed = (
   state: DonateReminderState,
@@ -270,6 +277,13 @@ export const prepareDonateReminderState = async (): Promise<void> => {
   }
 };
 
+const notifyDonateReminderStateSynced = (): void => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.dispatchEvent(new CustomEvent(DONATE_REMINDER_STATE_SYNCED_EVENT));
+};
+
 export const syncDonateReminderWithDrive = async (): Promise<void> => {
   try {
     const remote = await loadDonateReminderStateFromDrive();
@@ -277,6 +291,7 @@ export const syncDonateReminderWithDrive = async (): Promise<void> => {
     const merged = mergeDonateReminderState(local, remote);
     writeLocalDonateReminderState(merged);
     await saveDonateReminderStateToDrive(merged);
+    notifyDonateReminderStateSynced();
   } catch (error) {
     console.error("[donate-reminder] Drive sync failed:", error);
   }

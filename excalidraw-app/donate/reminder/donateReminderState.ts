@@ -91,6 +91,41 @@ const laterIso = (a: string | null, b: string | null): string | null => {
   return new Date(a) >= new Date(b) ? a : b;
 };
 
+const reminderShownAtMs = (iso: string | null): number =>
+  iso ? new Date(iso).getTime() : 0;
+
+/** Keep active time only from the side that matches the latest reminder show. */
+export const mergeActiveMsSinceLastReminder = (
+  local: DonateReminderState,
+  remote: DonateReminderState,
+  mergedLastReminderShownAt: string | null,
+): number => {
+  if (!mergedLastReminderShownAt) {
+    return Math.max(
+      local.activeMsSinceLastReminder,
+      remote.activeMsSinceLastReminder,
+    );
+  }
+
+  const mergedMs = reminderShownAtMs(mergedLastReminderShownAt);
+  const localMs = reminderShownAtMs(local.lastReminderShownAt);
+  const remoteMs = reminderShownAtMs(remote.lastReminderShownAt);
+
+  if (localMs === mergedMs && remoteMs === mergedMs) {
+    return Math.max(
+      local.activeMsSinceLastReminder,
+      remote.activeMsSinceLastReminder,
+    );
+  }
+  if (localMs === mergedMs) {
+    return local.activeMsSinceLastReminder;
+  }
+  if (remoteMs === mergedMs) {
+    return remote.activeMsSinceLastReminder;
+  }
+  return 0;
+};
+
 export const mergeDonateReminderState = (
   local: DonateReminderState,
   remote: DonateReminderState | null,
@@ -98,17 +133,19 @@ export const mergeDonateReminderState = (
   if (!remote) {
     return local;
   }
+  const lastReminderShownAt = laterIso(
+    local.lastReminderShownAt,
+    remote.lastReminderShownAt,
+  );
   return {
     schema: 1,
     sessionCount: Math.max(local.sessionCount, remote.sessionCount),
-    activeMsSinceLastReminder: Math.max(
-      local.activeMsSinceLastReminder,
-      remote.activeMsSinceLastReminder,
+    activeMsSinceLastReminder: mergeActiveMsSinceLastReminder(
+      local,
+      remote,
+      lastReminderShownAt,
     ),
-    lastReminderShownAt: laterIso(
-      local.lastReminderShownAt,
-      remote.lastReminderShownAt,
-    ),
+    lastReminderShownAt,
     snoozeUntil: laterIso(local.snoozeUntil, remote.snoozeUntil),
     suppressUntil: laterIso(local.suppressUntil, remote.suppressUntil),
     suppressRecurring: local.suppressRecurring || remote.suppressRecurring,
