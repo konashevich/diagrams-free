@@ -25,9 +25,12 @@ export const DONATE_THANKS_TOAST_TTL_MS = 5 * 60 * 1000;
 
 let donateThanksUrlConsumed = false;
 
-export type ReminderTrigger = "trigger_30m" | "trigger_second_session";
+export type ReminderTrigger = "trigger_60m" | "trigger_second_session";
 
 export type DonationKind = "once" | "monthly";
+
+/** Tab-visible active time before the session-based reminder can show. */
+export const DONATE_REMINDER_ACTIVE_MS_THRESHOLD = 60 * 60 * 1000;
 
 /** Tab sessions before the visit-based donation reminder can show. */
 export const DONATE_REMINDER_MIN_SESSION_COUNT = 5;
@@ -73,7 +76,7 @@ export const isDonateReminderSuppressed = (
 export const getReminderEligibility = (
   state: DonateReminderState,
   options: {
-    trigger30mReady: boolean;
+    triggerActiveUseReady: boolean;
     checkSecondSession: boolean;
   },
 ): ReminderTrigger | null => {
@@ -86,16 +89,27 @@ export const getReminderEligibility = (
   if (isSameLocalCalendarDay(state.lastReminderShownAt)) {
     return null;
   }
-  if (options.trigger30mReady) {
-    return "trigger_30m";
+  if (options.triggerActiveUseReady) {
+    return "trigger_60m";
   }
   if (
     options.checkSecondSession &&
-    state.sessionCount >= DONATE_REMINDER_MIN_SESSION_COUNT
+    state.sessionCount >= DONATE_REMINDER_MIN_SESSION_COUNT &&
+    state.activeMsSinceLastReminder >= DONATE_REMINDER_ACTIVE_MS_THRESHOLD
   ) {
     return "trigger_second_session";
   }
   return null;
+};
+
+export const addDonateReminderActiveMs = (ms: number): number => {
+  if (ms <= 0) {
+    return readLocalDonateReminderState().activeMsSinceLastReminder;
+  }
+  const state = readLocalDonateReminderState();
+  const activeMsSinceLastReminder = state.activeMsSinceLastReminder + ms;
+  writeLocalDonateReminderState({ ...state, activeMsSinceLastReminder });
+  return activeMsSinceLastReminder;
 };
 
 export const bumpDonateReminderSessionCount = (): DonateReminderState => {
@@ -127,6 +141,7 @@ export const markDonateReminderShownLocal = (): void => {
   writeLocalDonateReminderState({
     ...state,
     lastReminderShownAt: new Date().toISOString(),
+    activeMsSinceLastReminder: 0,
   });
 };
 

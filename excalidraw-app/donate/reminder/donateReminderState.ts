@@ -8,6 +8,8 @@ export type DonateReminderState = {
   schema: 1;
   /** Browsing sessions (tab sessions), not page refreshes — see bumpDonateReminderSessionCount. */
   sessionCount: number;
+  /** Tab-visible active time (ms) since the last reminder was shown. */
+  activeMsSinceLastReminder: number;
   lastReminderShownAt: string | null;
   snoozeUntil: string | null;
   suppressUntil: string | null;
@@ -18,6 +20,7 @@ export type DonateReminderState = {
 export const createDefaultDonateReminderState = (): DonateReminderState => ({
   schema: 1,
   sessionCount: 0,
+  activeMsSinceLastReminder: 0,
   lastReminderShownAt: null,
   snoozeUntil: null,
   suppressUntil: null,
@@ -38,6 +41,11 @@ const parseState = (raw: unknown): DonateReminderState | null => {
     sessionCount:
       typeof data.sessionCount === "number" && data.sessionCount >= 0
         ? data.sessionCount
+        : 0,
+    activeMsSinceLastReminder:
+      typeof data.activeMsSinceLastReminder === "number" &&
+      data.activeMsSinceLastReminder >= 0
+        ? data.activeMsSinceLastReminder
         : 0,
     lastReminderShownAt:
       typeof data.lastReminderShownAt === "string"
@@ -93,6 +101,10 @@ export const mergeDonateReminderState = (
   return {
     schema: 1,
     sessionCount: Math.max(local.sessionCount, remote.sessionCount),
+    activeMsSinceLastReminder: Math.max(
+      local.activeMsSinceLastReminder,
+      remote.activeMsSinceLastReminder,
+    ),
     lastReminderShownAt: laterIso(
       local.lastReminderShownAt,
       remote.lastReminderShownAt,

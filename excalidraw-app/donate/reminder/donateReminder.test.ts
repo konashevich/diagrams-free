@@ -6,6 +6,7 @@ import {
 } from "./donateReminderState";
 import {
   consumeDonateThanksUrl,
+  DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
   DONATE_REMINDER_MIN_SESSION_COUNT,
   DONATE_THANKS_TOAST_KEY,
   getReminderEligibility,
@@ -38,6 +39,7 @@ describe("donateReminderState merge", () => {
       {
         ...local,
         sessionCount: 2,
+        activeMsSinceLastReminder: 3_600_000,
         suppressRecurring: false,
         suppressUntil: "2026-01-01T00:00:00.000Z",
         snoozeUntil: null,
@@ -46,6 +48,7 @@ describe("donateReminderState merge", () => {
       {
         ...local,
         sessionCount: 5,
+        activeMsSinceLastReminder: 1_800_000,
         suppressRecurring: true,
         suppressUntil: "2025-01-01T00:00:00.000Z",
         snoozeUntil: "2026-12-01T00:00:00.000Z",
@@ -54,6 +57,7 @@ describe("donateReminderState merge", () => {
     );
 
     expect(merged.sessionCount).toBe(5);
+    expect(merged.activeMsSinceLastReminder).toBe(3_600_000);
     expect(merged.suppressRecurring).toBe(true);
     expect(merged.suppressUntil).toBe("2026-01-01T00:00:00.000Z");
     expect(merged.snoozeUntil).toBe("2026-12-01T00:00:00.000Z");
@@ -71,7 +75,7 @@ describe("getReminderEligibility", () => {
     expect(
       getReminderEligibility(
         { ...state, suppressRecurring: true },
-        { trigger30mReady: true, checkSecondSession: false },
+        { triggerActiveUseReady: true, checkSecondSession: false },
       ),
     ).toBeNull();
 
@@ -81,32 +85,50 @@ describe("getReminderEligibility", () => {
           ...state,
           lastReminderShownAt: new Date().toISOString(),
         },
-        { trigger30mReady: false, checkSecondSession: true },
+        { triggerActiveUseReady: false, checkSecondSession: true },
       ),
     ).toBeNull();
   });
 
-  it("allows trigger B from session count and trigger A directly", () => {
+  it("allows trigger B from session count plus active time and trigger A directly", () => {
     const state = readLocalDonateReminderState();
     expect(
       getReminderEligibility(
-        { ...state, sessionCount: DONATE_REMINDER_MIN_SESSION_COUNT - 1 },
-        { trigger30mReady: false, checkSecondSession: true },
+        {
+          ...state,
+          sessionCount: DONATE_REMINDER_MIN_SESSION_COUNT,
+          activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD - 1,
+        },
+        { triggerActiveUseReady: false, checkSecondSession: true },
       ),
     ).toBeNull();
     expect(
       getReminderEligibility(
-        { ...state, sessionCount: DONATE_REMINDER_MIN_SESSION_COUNT },
-        { trigger30mReady: false, checkSecondSession: true },
+        {
+          ...state,
+          sessionCount: DONATE_REMINDER_MIN_SESSION_COUNT - 1,
+          activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
+        },
+        { triggerActiveUseReady: false, checkSecondSession: true },
+      ),
+    ).toBeNull();
+    expect(
+      getReminderEligibility(
+        {
+          ...state,
+          sessionCount: DONATE_REMINDER_MIN_SESSION_COUNT,
+          activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
+        },
+        { triggerActiveUseReady: false, checkSecondSession: true },
       ),
     ).toBe("trigger_second_session");
 
     expect(
       getReminderEligibility(state, {
-        trigger30mReady: true,
+        triggerActiveUseReady: true,
         checkSecondSession: false,
       }),
-    ).toBe("trigger_30m");
+    ).toBe("trigger_60m");
   });
 });
 

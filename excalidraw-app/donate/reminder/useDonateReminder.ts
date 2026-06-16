@@ -18,9 +18,11 @@ import {
 import { isDonateEnabled } from "../donateConfig";
 
 import {
+  addDonateReminderActiveMs,
   applyDonateReminderSnoozeMonth,
   bumpDonateReminderSessionCount,
   consumeDonateThanksUrl,
+  DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
   DONATE_REMINDER_MIN_SESSION_COUNT,
   getReminderEligibility,
   markDonateReminderShownLocal,
@@ -30,8 +32,8 @@ import {
 } from "./donateReminderService";
 import { readLocalDonateReminderState } from "./donateReminderState";
 
-const ACTIVE_MS_THRESHOLD = 30 * 60 * 1000;
 const TIMER_TICK_MS = 1000;
+const ACTIVE_MS_FLUSH_INTERVAL_MS = 30 * 1000;
 
 type Options = {
   onOpenDonateModal: () => void;
@@ -42,10 +44,11 @@ const noop = () => {};
 export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
   const [isOpen, setIsOpen] = useState(false);
   const [ready, setReady] = useState(!isDonateEnabled());
-  const activeMsRef = useRef(0);
+  const sessionActiveMsRef = useRef(0);
+  const pendingActiveMsRef = useRef(0);
   const timerRunningRef = useRef(false);
-  const trigger30mFiredRef = useRef(false);
-  const secondSessionCheckedRef = useRef(false);
+  const activeUseTriggerFiredRef = useRef(false);
+  const sessionTriggerFiredRef = useRef(false);
   const isOpenRef = useRef(false);
   const visibilityVisibleRef = useRef(
     typeof document !== "undefined"
@@ -53,6 +56,7 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
       : true,
   );
   const tickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastActiveFlushAtRef = useRef(0);
 
   isOpenRef.current = isOpen;
 
@@ -66,13 +70,29 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
     }
   }, []);
 
+  const flushPendingActiveMs = useCallback(() => {
+    if (pendingActiveMsRef.current <= 0) {
+      return readLocalDonateReminderState().activeMsSinceLastReminder;
+    }
+    const pending = pendingActiveMsRef.current;
+    pendingActiveMsRef.current = 0;
+    lastActiveFlushAtRef.current = Date.now();
+    return addDonateReminderActiveMs(pending);
+  }, []);
+
+  const getAccumulatedActiveMs = useCallback(() => {
+    const persisted = readLocalDonateReminderState().activeMsSinceLastReminder;
+    return persisted + pendingActiveMsRef.current;
+  }, []);
+
   const showReminder = useCallback((trigger: ReminderTrigger) => {
     if (isOpenRef.current) {
       return;
     }
+    flushPendingActiveMs();
     const state = readLocalDonateReminderState();
     const eligible = getReminderEligibility(state, {
-      trigger30mReady: trigger === "trigger_30m",
+      triggerActiveUseReady: trigger === "trigger_60m",
       checkSecondSession: trigger === "trigger_second_session",
     });
     if (!eligible) {
@@ -82,7 +102,22 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
     trackDonateReminderShown(trigger);
     void persistDonateReminderShownToDrive();
     setIsOpen(true);
-  }, []);
+  }, [flushPendingActiveMs]);
+
+  const trySessionTrigger = useCallback(() => {
+    if (sessionTriggerFiredRef.current) {
+      return;
+    }
+    if (getAccumulatedActiveMs() < DONATE_REMINDER_ACTIVE_MS_THRESHOLD) {
+      return;
+    }
+    const state = readLocalDonateReminderState();
+    if (state.sessionCount < DONATE_REMINDER_MIN_SESSION_COUNT) {
+      return;
+    }
+    sessionTriggerFiredRef.current = true;
+    showReminder("trigger_second_session");
+  }, [getAccumulatedActiveMs, showReminder]);
 
   const stopTimer = useCallback(() => {
     if (tickIntervalRef.current) {
@@ -90,10 +125,11 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
       tickIntervalRef.current = null;
     }
     timerRunningRef.current = false;
-  }, []);
+    flushPendingActiveMs();
+  }, [flushPendingActiveMs]);
 
   const startActiveTimer = useCallback(() => {
-    if (timerRunningRef.current || trigger30mFiredRef.current) {
+    if (timerRunningRef.current || activeUseTriggerFiredRef.current) {
       return;
     }
     timerRunningRef.current = true;
@@ -101,17 +137,30 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
       if (!visibilityVisibleRef.current) {
         return;
       }
-      activeMsRef.current += TIMER_TICK_MS;
+      sessionActiveMsRef.current += TIMER_TICK_MS;
+      pendingActiveMsRef.current += TIMER_TICK_MS;
+
+      const now = Date.now();
       if (
-        !trigger30mFiredRef.current &&
-        activeMsRef.current >= ACTIVE_MS_THRESHOLD
+        now - lastActiveFlushAtRef.current >=
+        ACTIVE_MS_FLUSH_INTERVAL_MS
       ) {
-        trigger30mFiredRef.current = true;
-        stopTimer();
-        showReminder("trigger_30m");
+        flushPendingActiveMs();
       }
+
+      if (
+        !activeUseTriggerFiredRef.current &&
+        sessionActiveMsRef.current >= DONATE_REMINDER_ACTIVE_MS_THRESHOLD
+      ) {
+        activeUseTriggerFiredRef.current = true;
+        stopTimer();
+        showReminder("trigger_60m");
+        return;
+      }
+
+      trySessionTrigger();
     }, TIMER_TICK_MS);
-  }, [showReminder, stopTimer]);
+  }, [flushPendingActiveMs, showReminder, stopTimer, trySessionTrigger]);
 
   useEffect(() => {
     if (!isDonateEnabled()) {
@@ -135,18 +184,14 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
     }
 
     bumpDonateReminderSessionCount();
-
-    const state = readLocalDonateReminderState();
-    if (
-      !secondSessionCheckedRef.current &&
-      state.sessionCount >= DONATE_REMINDER_MIN_SESSION_COUNT
-    ) {
-      secondSessionCheckedRef.current = true;
-      showReminder("trigger_second_session");
-    }
+    trySessionTrigger();
 
     const onVisibilityChange = () => {
-      visibilityVisibleRef.current = document.visibilityState === "visible";
+      const visible = document.visibilityState === "visible";
+      visibilityVisibleRef.current = visible;
+      if (!visible) {
+        flushPendingActiveMs();
+      }
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
 
@@ -163,7 +208,14 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
       window.removeEventListener(CANVAS_USED_SESSION_EVENT, onCanvasUsed);
       stopTimer();
     };
-  }, [ready, showReminder, startActiveTimer, stopTimer]);
+  }, [
+    ready,
+    flushPendingActiveMs,
+    showReminder,
+    startActiveTimer,
+    stopTimer,
+    trySessionTrigger,
+  ]);
 
   const handleSupport = useCallback(() => {
     trackDonateReminderSupportClick();
