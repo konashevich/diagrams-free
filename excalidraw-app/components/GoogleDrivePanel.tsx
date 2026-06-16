@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 import DialogActionButton from "@excalidraw/excalidraw/components/DialogActionButton";
+import { helpIcon } from "@excalidraw/excalidraw/components/icons";
+import { Tooltip } from "@excalidraw/excalidraw/components/Tooltip";
 
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
@@ -35,6 +37,9 @@ type Props = {
   onMergeSuccess?: (message: string) => void;
 };
 
+const DRIVE_INFO_TOOLTIP =
+  "Back up and merge My scenes with your Google Drive under diagrams.free/vault/. Returning to this tab or clicking Sync merges changes from other devices. Auto-backup only controls pushing edits to Drive.";
+
 const formatSyncTime = (timestamp: number | null): string => {
   if (!timestamp) {
     return "Never";
@@ -44,6 +49,16 @@ const formatSyncTime = (timestamp: number | null): string => {
   } catch {
     return "";
   }
+};
+
+const driveAccountStatus = (
+  signedIn: boolean,
+  email: string | null,
+): string => {
+  if (!signedIn) {
+    return "Not signed in";
+  }
+  return email ? `Connected as ${email}` : "Connected";
 };
 
 export const GoogleDrivePanel = ({
@@ -221,24 +236,29 @@ export const GoogleDrivePanel = ({
 
   return (
     <section className="scene-vault-dialog__drive" aria-label="Google Drive backup">
-      <h3 className="scene-vault-dialog__drive-title">Google Drive</h3>
-      <p className="scene-vault-dialog__drive-hint">
-        Back up and merge <strong>My scenes</strong> with your Google Drive
-        under <code>diagrams.free/vault/</code>. Returning to this tab or
-        clicking Sync merges changes from other devices. Auto-backup only
-        controls pushing edits to Drive.
-      </p>
+      <div className="scene-vault-dialog__drive-header">
+        <div className="scene-vault-dialog__drive-heading">
+          <h3 className="scene-vault-dialog__drive-title">Google Drive</h3>
+          <Tooltip label={DRIVE_INFO_TOOLTIP} long>
+            <button
+              type="button"
+              className="scene-vault-dialog__drive-info"
+              aria-label="About Google Drive backup"
+            >
+              {helpIcon}
+            </button>
+          </Tooltip>
+        </div>
+        <span className="scene-vault-dialog__drive-status">
+          {driveAccountStatus(signedIn, email)}
+        </span>
+      </div>
 
-      {signedIn ? (
-        <p className="scene-vault-dialog__drive-account">
-          Connected{email ? ` as ${email}` : ""}
-          {!sessionReady
-            ? " — Google may ask you to confirm when you sync or share"
-            : ""}
+      {signedIn && !sessionReady ? (
+        <p className="scene-vault-dialog__drive-hint">
+          Google may ask you to confirm when you sync or share.
         </p>
-      ) : (
-        <p className="scene-vault-dialog__drive-account">Not signed in</p>
-      )}
+      ) : null}
 
       {error ? (
         <p className="scene-vault-dialog__error" role="alert">
@@ -246,12 +266,17 @@ export const GoogleDrivePanel = ({
         </p>
       ) : null}
 
-      <p className="scene-vault-dialog__drive-meta">
-        Last backed up to Drive: {formatSyncTime(lastPushAt)}
-      </p>
-      <p className="scene-vault-dialog__drive-meta">
-        Last merged from Drive: {formatSyncTime(lastPullAt)}
-      </p>
+      {signedIn ? (
+        <details className="scene-vault-dialog__drive-sync-report">
+          <summary>Sync report</summary>
+          <p className="scene-vault-dialog__drive-meta">
+            Last backed up to Drive: {formatSyncTime(lastPushAt)}
+          </p>
+          <p className="scene-vault-dialog__drive-meta">
+            Last merged from Drive: {formatSyncTime(lastPullAt)}
+          </p>
+        </details>
+      ) : null}
 
       {signedIn ? (
         <>

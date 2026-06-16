@@ -140,22 +140,102 @@
 
   .scene-vault-dialog__drive {
     margin: 0 0 1rem;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid var(--color-border-outline-variant);
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-border-outline-variant);
+    border-radius: var(--border-radius-md);
+    background: var(--color-surface-low);
+  }
+
+  .scene-vault-dialog__drive-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .scene-vault-dialog__drive-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
   }
 
   .scene-vault-dialog__drive-title {
-    margin: 0 0 0.35rem;
+    margin: 0;
     font-size: var(--font-size-md);
     font-weight: 600;
   }
 
+  .scene-vault-dialog__drive-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: help;
+    line-height: 0;
+
+    svg {
+      width: 1rem;
+      height: 1rem;
+    }
+
+    &:hover {
+      color: var(--color-text-primary);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 1px;
+      border-radius: var(--border-radius-sm);
+    }
+  }
+
+  .scene-vault-dialog__drive-status {
+    flex-shrink: 1;
+    min-width: 0;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+  }
+
   .scene-vault-dialog__drive-hint,
-  .scene-vault-dialog__drive-account,
   .scene-vault-dialog__drive-meta {
     margin: 0 0 0.5rem;
     font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
+  }
+
+  .scene-vault-dialog__drive-sync-report {
+    margin: 0 0 0.5rem;
+    font-size: var(--font-size-sm);
+
+    summary {
+      cursor: pointer;
+      font-weight: 500;
+      color: var(--color-text-primary);
+      user-select: none;
+
+      &:hover {
+        color: var(--color-primary);
+      }
+    }
+
+    .scene-vault-dialog__drive-meta {
+      margin-top: 0.35rem;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
   }
 
   .scene-vault-dialog__drive-autosync {
