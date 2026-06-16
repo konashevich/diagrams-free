@@ -3,10 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   mergeActiveMsSinceLastReminder,
   mergeDonateReminderState,
+  mergeSessionsSinceLastReminder,
   readLocalDonateReminderState,
 } from "./donateReminderState";
 import {
   addDonateReminderActiveMs,
+  bumpDonateReminderSessionCount,
   consumeDonateThanksUrl,
   DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
   DONATE_REMINDER_MIN_SESSION_COUNT,
@@ -16,6 +18,7 @@ import {
   isDonateReminderShownToday,
   isDonateReminderSuppressed,
   markDonateReminderShownLocal,
+  persistDonateReminderShownToDrive,
   resetDonateReminderStateForTests,
   tryMarkDonateReminderShownLocal,
 } from "./donateReminderService";
@@ -134,6 +137,24 @@ describe("donateReminderState merge", () => {
       ),
     ).toBe(3_600_000);
   });
+
+  it("mergeSessionsSinceLastReminder keeps max when both share the same reminder", () => {
+    const local = readLocalDonateReminderState();
+    const remote = {
+      ...local,
+      sessionsSinceLastReminder: 2,
+      lastReminderShownAt: "2026-06-01T00:00:00.000Z",
+    };
+    const mergedAt = "2026-06-01T00:00:00.000Z";
+
+    expect(
+      mergeSessionsSinceLastReminder(
+        { ...local, sessionsSinceLastReminder: 4, lastReminderShownAt: mergedAt },
+        remote,
+        mergedAt,
+      ),
+    ).toBe(4);
+  });
 });
 
 describe("active time tracking", () => {
@@ -212,6 +233,49 @@ describe("flushDonateReminderActiveMsToDrive", () => {
     expect(saved?.sessionCount).toBe(9);
     expect(saved?.activeMsSinceLastReminder).toBe(5_000);
     expect(readLocalDonateReminderState().sessionCount).toBe(9);
+  });
+});
+
+describe("persistDonateReminderShownToDrive", () => {
+  beforeEach(() => {
+    resetDonateReminderStateForTests();
+  });
+
+  it("merges with remote snooze before saving when Drive is linked", async () => {
+    const { isGoogleDriveEnabled } = await import("../../google-drive/constants");
+    const { isGoogleDriveLinked } = await import("../../google-drive/auth");
+    const { loadDonateReminderStateFromDrive, saveDonateReminderStateToDrive } =
+      await import("./donateReminderDriveSync");
+
+    vi.mocked(isGoogleDriveEnabled).mockReturnValue(true);
+    vi.mocked(isGoogleDriveLinked).mockReturnValue(true);
+
+    const remoteSnooze = new Date(Date.now() + 86_400_000).toISOString();
+    vi.mocked(loadDonateReminderStateFromDrive).mockResolvedValue({
+      ...readLocalDonateReminderState(),
+      snoozeUntil: remoteSnooze,
+    });
+
+    expect(tryMarkDonateReminderShownLocal(null)).toBe(true);
+
+    await persistDonateReminderShownToDrive();
+
+    const saved = vi.mocked(saveDonateReminderStateToDrive).mock.calls.at(-1)?.[0];
+    expect(saved?.snoozeUntil).toBe(remoteSnooze);
+    expect(saved?.lastReminderShownAt).not.toBeNull();
+    expect(readLocalDonateReminderState().snoozeUntil).toBe(remoteSnooze);
+  });
+});
+
+describe("bumpDonateReminderSessionCount", () => {
+  beforeEach(() => {
+    resetDonateReminderStateForTests();
+  });
+
+  it("increments once per tab session", () => {
+    expect(bumpDonateReminderSessionCount().sessionCount).toBe(1);
+    expect(bumpDonateReminderSessionCount().sessionCount).toBe(1);
+    expect(readLocalDonateReminderState().sessionsSinceLastReminder).toBe(1);
   });
 });
 

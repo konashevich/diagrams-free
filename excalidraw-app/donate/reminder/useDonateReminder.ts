@@ -198,6 +198,7 @@ export const useDonateReminder = ({ onOpenDonateModal }: Options) => {
       return;
     }
     if (isDonateReminderShownToday(readLocalDonateReminderState())) {
+      maybeStartActiveTimer();
       return;
     }
     maybeStartActiveTimer();

@@ -32,10 +32,10 @@ export type ReminderTrigger = "trigger_60m" | "trigger_fifth_session";
 
 export type DonationKind = "once" | "monthly";
 
-/** Tab-visible active time before the session-based reminder can show. */
+/** Minimum tab-visible active ms since last reminder (first and regular modes). */
 export const DONATE_REMINDER_ACTIVE_MS_THRESHOLD = 60 * 60 * 1000;
 
-/** Tab sessions before the visit-based donation reminder can show. */
+/** Minimum tab sessions since last reminder (regular mode only). */
 export const DONATE_REMINDER_MIN_SESSION_COUNT = 5;
 
 /** Debounced Drive backup while active time accrues (no sync event — avoids feedback loops). */
@@ -53,8 +53,11 @@ const scheduleActiveMsDriveSave = (): void => {
   }, ACTIVE_MS_DRIVE_SAVE_DEBOUNCE_MS);
 };
 
-/** Merge local active time with Drive before save (no sync event — avoids feedback loops). */
-export const flushDonateReminderActiveMsToDrive = async (): Promise<void> => {
+/** Merge local with Drive, persist both (no sync event — avoids feedback loops). */
+const saveDonateReminderStateWithDriveMerge = async (
+  local: DonateReminderState,
+): Promise<void> => {
+  writeLocalDonateReminderState(local);
   if (!isDonateEnabled() || !isGoogleDriveEnabled()) {
     return;
   }
@@ -64,13 +67,17 @@ export const flushDonateReminderActiveMsToDrive = async (): Promise<void> => {
   }
   try {
     const remote = await loadDonateReminderStateFromDrive();
-    const local = readLocalDonateReminderState();
     const merged = mergeDonateReminderState(local, remote);
     writeLocalDonateReminderState(merged);
     await saveDonateReminderStateToDrive(merged);
   } catch (error) {
-    console.error("[donate-reminder] Drive active-time save failed:", error);
+    console.error("[donate-reminder] Drive save failed:", error);
   }
+};
+
+/** Merge local active time with Drive before save (no sync event — avoids feedback loops). */
+export const flushDonateReminderActiveMsToDrive = async (): Promise<void> => {
+  await saveDonateReminderStateWithDriveMerge(readLocalDonateReminderState());
 };
 
 export const cancelActiveMsDriveSave = (): void => {
@@ -211,14 +218,10 @@ export const bumpDonateReminderSessionCount = (): DonateReminderState => {
 };
 
 const persistState = async (state: DonateReminderState): Promise<void> => {
-  writeLocalDonateReminderState(state);
-  try {
-    await saveDonateReminderStateToDrive(state);
-  } catch (error) {
-    console.error("[donate-reminder] Drive save failed:", error);
-  }
+  await saveDonateReminderStateWithDriveMerge(state);
 };
 
+/** Test helper — production uses `tryMarkDonateReminderShownLocal` (cross-tab safe). */
 export const markDonateReminderShownLocal = (): void => {
   const state = readLocalDonateReminderState();
   writeLocalDonateReminderState({
@@ -231,16 +234,7 @@ export const markDonateReminderShownLocal = (): void => {
 };
 
 export const persistDonateReminderShownToDrive = async (): Promise<void> => {
-  try {
-    await saveDonateReminderStateToDrive(readLocalDonateReminderState());
-  } catch (error) {
-    console.error("[donate-reminder] Drive save failed:", error);
-  }
-};
-
-export const recordDonateReminderShown = async (): Promise<void> => {
-  markDonateReminderShownLocal();
-  await persistDonateReminderShownToDrive();
+  await saveDonateReminderStateWithDriveMerge(readLocalDonateReminderState());
 };
 
 export const applyDonateReminderSnoozeMonth = async (): Promise<void> => {

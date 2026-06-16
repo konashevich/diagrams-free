@@ -160,6 +160,8 @@ Implement remaining work per plan §9 (terminal `gcloud` + browser for Console).
 
 **Design doc:** [docs/donate-reminder-plan.md](docs/donate-reminder-plan.md) — read **Scope lock** first.
 
+**Triggers:** First reminder = **≥ 60 min** tab-visible active time since **first canvas use** (no session minimum). Regular = **≥ 5 tab sessions** and **≥ 60 min** since last reminder (both required). Time accrues only while the tab is visible and after canvas use in the tab; see plan §2.1.1.
+
 **No backend for this feature:** no Stripe webhooks, no Apps Script for payment truth, no “Phase D”. Suppress via return URL `?donate=thanks&kind=once|monthly` only; optional Drive JSON sync (`drive.file`). Monthly cancel in Stripe does **not** clear suppress — accepted limit.
 
 **Code:** `excalidraw-app/donate/reminder/`

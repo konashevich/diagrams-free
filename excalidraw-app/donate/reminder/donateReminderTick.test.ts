@@ -122,4 +122,20 @@ describe("advanceDonateReminderTick", () => {
 
     expect(result.attemptReminder).toBe(false);
   });
+
+  it("accrues but does not re-attempt after reminder shown today", () => {
+    const result = advanceDonateReminderTick(
+      tickInput({
+        state: {
+          ...baseState(),
+          lastReminderShownAt: new Date().toISOString(),
+          activeMsSinceLastReminder: DONATE_REMINDER_ACTIVE_MS_THRESHOLD,
+        },
+      }),
+    );
+
+    expect(result.accrueTime).toBe(true);
+    expect(result.pendingActiveMs).toBe(1000);
+    expect(result.attemptReminder).toBe(false);
+  });
 });
