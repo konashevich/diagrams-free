@@ -220,17 +220,41 @@
 
     summary {
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
       font-weight: 500;
       color: var(--color-text-primary);
       user-select: none;
+      list-style: none;
+
+      &::-webkit-details-marker {
+        display: none;
+      }
+
+      &::before {
+        content: "▸";
+        font-size: 0.75rem;
+        line-height: 1;
+        color: var(--color-text-secondary);
+      }
 
       &:hover {
         color: var(--color-primary);
+
+        &::before {
+          color: var(--color-primary);
+        }
       }
+    }
+
+    &[open] summary::before {
+      content: "▾";
     }
 
     .scene-vault-dialog__drive-meta {
       margin-top: 0.35rem;
+      padding-left: 1rem;
 
       &:last-child {
         margin-bottom: 0;

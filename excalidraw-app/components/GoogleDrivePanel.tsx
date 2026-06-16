@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 
 import DialogActionButton from "@excalidraw/excalidraw/components/DialogActionButton";
 import { helpIcon } from "@excalidraw/excalidraw/components/icons";
@@ -54,9 +54,13 @@ const formatSyncTime = (timestamp: number | null): string => {
 const driveAccountStatus = (
   signedIn: boolean,
   email: string | null,
+  accountStatusReady: boolean,
 ): string => {
   if (!signedIn) {
     return "Not signed in";
+  }
+  if (!accountStatusReady) {
+    return "Connecting…";
   }
   return email ? `Connected as ${email}` : "Connected";
 };
@@ -68,9 +72,13 @@ export const GoogleDrivePanel = ({
   confirmActiveSceneReload,
   onMergeSuccess,
 }: Props) => {
+  const driveInfoDescId = useId();
   const [signedIn, setSignedIn] = useState(isSignedInToGoogle());
   const [sessionReady, setSessionReady] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
+  const [accountStatusReady, setAccountStatusReady] = useState(
+    () => !isSignedInToGoogle(),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastPushAt, setLastPushAt] = useState<number | null>(() =>
@@ -97,14 +105,20 @@ export const GoogleDrivePanel = ({
       setSignedIn(false);
       setSessionReady(false);
       setEmail(null);
+      setAccountStatusReady(true);
       return;
     }
     setSignedIn(true);
-    await warmDriveAccessToken();
-    setSessionReady(hasValidAccessToken());
-    const accountEmail = await getGoogleAccountEmail();
-    setEmail(accountEmail ?? null);
-    refreshTimestamps();
+    setAccountStatusReady(false);
+    try {
+      await warmDriveAccessToken();
+      setSessionReady(hasValidAccessToken());
+      const accountEmail = await getGoogleAccountEmail();
+      setEmail(accountEmail ?? null);
+      refreshTimestamps();
+    } finally {
+      setAccountStatusReady(true);
+    }
   }, [refreshTimestamps]);
 
   useEffect(() => {
@@ -194,6 +208,7 @@ export const GoogleDrivePanel = ({
       setSignedIn(true);
       setSessionReady(true);
       setEmail(session.email ?? null);
+      setAccountStatusReady(true);
       applyMergeResult(
         result.syncedAt,
         formatDriveMergeSuccessMessage(result),
@@ -214,6 +229,7 @@ export const GoogleDrivePanel = ({
       setSignedIn(true);
       setSessionReady(true);
       setEmail(session.email ?? null);
+      setAccountStatusReady(true);
     } catch (err) {
       console.error("[google-drive]", err);
       setError(err instanceof Error ? err.message : "Google reconnect failed.");
@@ -227,30 +243,48 @@ export const GoogleDrivePanel = ({
       setSignedIn(false);
       setSessionReady(false);
       setEmail(null);
+      setAccountStatusReady(true);
       setError(null);
     });
   };
 
   const isDisabled = disabled || busy;
   const autoSyncPaused = signedIn && !sessionReady;
+  const accountStatusText = driveAccountStatus(
+    signedIn,
+    email,
+    accountStatusReady,
+  );
+  const accountStatusTitle =
+    signedIn && accountStatusReady && email ? email : undefined;
 
   return (
     <section className="scene-vault-dialog__drive" aria-label="Google Drive backup">
       <div className="scene-vault-dialog__drive-header">
         <div className="scene-vault-dialog__drive-heading">
           <h3 className="scene-vault-dialog__drive-title">Google Drive</h3>
-          <Tooltip label={DRIVE_INFO_TOOLTIP} long>
+          <Tooltip label={DRIVE_INFO_TOOLTIP} long clickToToggle>
             <button
               type="button"
               className="scene-vault-dialog__drive-info"
               aria-label="About Google Drive backup"
+              aria-describedby={driveInfoDescId}
+              title={DRIVE_INFO_TOOLTIP}
             >
               {helpIcon}
             </button>
           </Tooltip>
+          <span id={driveInfoDescId} className="visually-hidden">
+            {DRIVE_INFO_TOOLTIP}
+          </span>
         </div>
-        <span className="scene-vault-dialog__drive-status">
-          {driveAccountStatus(signedIn, email)}
+        <span
+          className="scene-vault-dialog__drive-status"
+          title={accountStatusTitle}
+          aria-live="polite"
+          aria-busy={signedIn && !accountStatusReady}
+        >
+          {accountStatusText}
         </span>
       </div>
 

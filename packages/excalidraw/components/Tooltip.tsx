@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import "./Tooltip.scss";
 
@@ -13,6 +13,10 @@ export const getTooltipDiv = () => {
   document.body.appendChild(div);
   div.classList.add("excalidraw-tooltip");
   return div;
+};
+
+export const hideTooltip = () => {
+  getTooltipDiv().classList.remove("excalidraw-tooltip--visible");
 };
 
 export const updateTooltipPosition = (
@@ -75,12 +79,22 @@ const updateTooltip = (
   updateTooltipPosition(tooltip, itemRect);
 };
 
+export const showTooltipForElement = (
+  item: HTMLDivElement,
+  label: string,
+  long = false,
+) => {
+  updateTooltip(item, getTooltipDiv(), label, long);
+};
+
 type TooltipProps = {
   children: React.ReactNode;
   label: string;
   long?: boolean;
   style?: React.CSSProperties;
   disabled?: boolean;
+  /** Tap/click toggles the tooltip until dismissed (useful on touch devices). */
+  clickToToggle?: boolean;
 };
 
 export const Tooltip = ({
@@ -89,28 +103,70 @@ export const Tooltip = ({
   long = false,
   style,
   disabled,
+  clickToToggle = false,
 }: TooltipProps) => {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [pinned, setPinned] = useState(false);
+
   useEffect(() => {
-    return () =>
-      getTooltipDiv().classList.remove("excalidraw-tooltip--visible");
+    return () => hideTooltip();
   }, []);
+
+  useEffect(() => {
+    if (!pinned) {
+      return;
+    }
+    const dismissPinned = (event: PointerEvent) => {
+      if (!wrapperRef.current?.contains(event.target as Node)) {
+        hideTooltip();
+        setPinned(false);
+      }
+    };
+    document.addEventListener("pointerdown", dismissPinned);
+    return () => document.removeEventListener("pointerdown", dismissPinned);
+  }, [pinned]);
+
   if (disabled) {
     return null;
   }
+
+  const show = () => {
+    if (wrapperRef.current) {
+      showTooltipForElement(wrapperRef.current, label, long);
+    }
+  };
+
+  const hide = () => {
+    if (!pinned) {
+      hideTooltip();
+    }
+  };
+
   return (
     <div
+      ref={wrapperRef}
       className="excalidraw-tooltip-wrapper"
-      onPointerEnter={(event) =>
-        updateTooltip(
-          event.currentTarget as HTMLDivElement,
-          getTooltipDiv(),
-          label,
-          long,
-        )
-      }
-      onPointerLeave={() =>
-        getTooltipDiv().classList.remove("excalidraw-tooltip--visible")
-      }
+      onPointerEnter={show}
+      onPointerLeave={hide}
+      onFocusCapture={show}
+      onBlurCapture={(event) => {
+        if (!wrapperRef.current?.contains(event.relatedTarget as Node)) {
+          hideTooltip();
+          setPinned(false);
+        }
+      }}
+      onClick={() => {
+        if (!clickToToggle) {
+          return;
+        }
+        if (pinned) {
+          hideTooltip();
+          setPinned(false);
+          return;
+        }
+        show();
+        setPinned(true);
+      }}
       style={style}
     >
       {children}
